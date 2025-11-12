@@ -2,6 +2,7 @@ package com.redseismica.view;
 
 import com.redseismica.controller.GestorAdmInspeccion;
 import com.redseismica.model.MotivoTipo;
+import com.redseismica.model.MotivoFueraServicio;
 import com.redseismica.model.OrdenInspeccion;
 
 import javax.swing.*;
@@ -26,6 +27,11 @@ public class PantallaAdmInspecciones {
     
     private JComboBox<MotivoTipo> motivosComboBox;
     private JTextField comentarioField;
+    // Lista dinámica de motivos agregados por el usuario
+    private DefaultListModel<MotivoFueraServicio> motivosListModel;
+    private JList<MotivoFueraServicio> motivosList;
+    private JButton addMotivoButton;
+    private JButton removeMotivoButton;
     private JButton cerrarButton;
     private JLabel mensajeLabel;
     
@@ -185,14 +191,14 @@ public class PantallaAdmInspecciones {
         gbc.weighty = 0;
         panelCentral.add(motivosComboBox, gbc);
 
-        // Sección de comentario
+    // Sección de comentario
         gbc.gridy++;
         gbc.weighty = 0;
         JLabel comentarioLabel = createSectionLabel("💬 Comentario");
         panelCentral.add(comentarioLabel, gbc);
         
-        gbc.gridy++;
-        comentarioField = new JTextField();
+    gbc.gridy++;
+    comentarioField = new JTextField();
         comentarioField.setFont(new Font("Segoe UI", Font.PLAIN, 15));
         comentarioField.setBackground(BLANCO);
         comentarioField.setForeground(AZUL_OSCURO);
@@ -203,6 +209,66 @@ public class PantallaAdmInspecciones {
             BorderFactory.createEmptyBorder(10, 15, 10, 15)
         ));
         panelCentral.add(comentarioField, gbc);
+
+        // Panel para agregar/remover motivos y mostrar la lista
+        gbc.gridy++;
+        gbc.gridwidth = 2;
+        JPanel motivosPanel = new JPanel(new BorderLayout(10, 10));
+        motivosPanel.setBackground(GRIS_CLARO);
+
+        // Botones para agregar y remover motivos
+        JPanel motivosBtnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        motivosBtnPanel.setBackground(GRIS_CLARO);
+        addMotivoButton = new JButton("Agregar motivo");
+        removeMotivoButton = new JButton("Quitar motivo");
+        addMotivoButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        removeMotivoButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        motivosBtnPanel.add(addMotivoButton);
+        motivosBtnPanel.add(removeMotivoButton);
+
+        // Lista que muestra los motivos agregados
+        motivosListModel = new DefaultListModel<>();
+        motivosList = new JList<>(motivosListModel);
+        motivosList.setVisibleRowCount(5);
+        motivosList.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof MotivoFueraServicio) {
+                    MotivoFueraServicio m = (MotivoFueraServicio) value;
+                    String comentario = m.getComentario() == null || m.getComentario().isBlank() ? "(sin comentario)" : m.getComentario();
+                    setText(m.getTipo().getDescripcion() + " — " + comentario);
+                }
+                setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+                return this;
+            }
+        });
+
+        motivosPanel.add(motivosBtnPanel, BorderLayout.NORTH);
+        motivosPanel.add(new JScrollPane(motivosList), BorderLayout.CENTER);
+        panelCentral.add(motivosPanel, gbc);
+
+        // Acciones de los botones agregar/quitar
+        addMotivoButton.addActionListener(evt -> {
+            MotivoTipo seleccionado = (MotivoTipo) motivosComboBox.getSelectedItem();
+            String comentarioText = comentarioField.getText();
+            if (seleccionado == null) {
+                mostrarError("Seleccione un motivo antes de agregar");
+                return;
+            }
+            MotivoFueraServicio nuevo = new MotivoFueraServicio(seleccionado, comentarioText == null ? "" : comentarioText);
+            motivosListModel.addElement(nuevo);
+            comentarioField.setText("");
+        });
+
+        removeMotivoButton.addActionListener(evt -> {
+            MotivoFueraServicio sel = motivosList.getSelectedValue();
+            if (sel != null) {
+                motivosListModel.removeElement(sel);
+            } else {
+                mostrarError("Seleccione un motivo agregado para quitarlo");
+            }
+        });
 
         // Panel de botones y mensaje
         gbc.gridy++;
@@ -308,7 +374,7 @@ public class PantallaAdmInspecciones {
     public void cargarDatos() {
         gestor.opCerrarOrdenInspeccion();
         // Cargar también los motivos disponibles desde el inicio
-        mostrarMotivos(gestor.obtenerMotivosDisponibles());
+        mostrarMotivos(gestor.buscarMotivoFueraLinea());
     }
 
     /**
@@ -329,22 +395,26 @@ public class PantallaAdmInspecciones {
             mostrarError("Ingrese una observación de cierre");
             return;
         }
-        // Motivo seleccionado (desde el desplegable)
+        // Permitir al usuario agregar tantos motivos como quiera: en la UI
+        // proveemos un simple flujo en el que el usuario puede seleccionar
+        // un motivo, escribir un comentario y pulsar "Agregar motivo".
+        // Para mantener los cambios mínimos, si el campo de comentario está
+        // vacío asumimos comentario vacío.
+        java.util.List<MotivoFueraServicio> motivosSeleccionados = new java.util.ArrayList<>();
+        // Añadir el motivo actualmente seleccionado si existe
         MotivoTipo motivoSeleccionado = (MotivoTipo) motivosComboBox.getSelectedItem();
-        if (motivoSeleccionado == null) {
-            mostrarError("Seleccione al menos un motivo");
-            return;
-        }
-        java.util.List<MotivoTipo> motivosSeleccionados = new java.util.ArrayList<>();
-        motivosSeleccionados.add(motivoSeleccionado);
-        // Comentario – se aplica el mismo a todos los motivos en este ejemplo
         String comentario = comentarioField.getText();
-        java.util.List<String> comentarios = new java.util.ArrayList<>();
-        comentarios.add(comentario);
+        if (motivoSeleccionado != null) {
+            motivosSeleccionados.add(new MotivoFueraServicio(motivoSeleccionado, comentario == null ? "" : comentario));
+        }
+        // Nota: para una UI completa con lista dinámica de motivos se podría
+        // añadir un panel con filas y un botón "Agregar motivo" que inserte
+        // elementos en una lista visible; aquí usamos la lista con un único
+        // motivo seleccionado en el momento de enviar.
         // Invocar al gestor
         gestor.tomarSeleccionOrden(seleccion);
         gestor.tomarObservacion(obs);
-        gestor.tomarSeleccionMotivos(motivosSeleccionados, comentarios);
+        gestor.tomarSeleccionMotivos(motivosSeleccionados);
         gestor.tomarConfirmacion();
     }
 

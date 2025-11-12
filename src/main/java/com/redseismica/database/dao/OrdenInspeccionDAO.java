@@ -5,7 +5,6 @@ import com.redseismica.model.*;
 import com.redseismica.states.*;
 
 import java.sql.*;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,11 +55,12 @@ public class OrdenInspeccionDAO {
                 rol
             );
 
-            // Crear Sismógrafo
+            // Crear Sismógrafo (estación asignada después)
             Sismografo sismografo = new Sismografo(
                 rs.getInt("sisId"),
                 rs.getTimestamp("fecha_instalacion").toLocalDateTime(),
-                rs.getInt("numero_serie")
+                rs.getInt("numero_serie"),
+                null
             );
 
             // Establecer estado del sismógrafo
@@ -83,12 +83,13 @@ public class OrdenInspeccionDAO {
             );
 
             // Crear Orden de Inspección
+            com.redseismica.model.Estado estadoOrden = estadoFromCodigo(rs.getString("estado"));
             OrdenInspeccion orden = new OrdenInspeccion(
                 rs.getInt("numero_orden"),
                 rs.getTimestamp("fecha_hora_emision").toLocalDateTime(),
                 rs.getTimestamp("fecha_hora_finalizacion") != null ? 
                     rs.getTimestamp("fecha_hora_finalizacion").toLocalDateTime() : null,
-                EstadoOrden.valueOf(rs.getString("estado")),
+                estadoOrden,
                 estacion,
                 empleado
             );
@@ -97,7 +98,7 @@ public class OrdenInspeccionDAO {
             Timestamp fechaCierre = rs.getTimestamp("fecha_hora_cierre");
             if (fechaCierre != null) {
                 String observacion = rs.getString("observacion_cierre");
-                orden.cerrar(fechaCierre.toLocalDateTime(), observacion);
+                orden.cerrar(fechaCierre.toLocalDateTime(), observacion, estadoOrden);
             }
 
             ordenes.add(orden);
@@ -147,11 +148,12 @@ public class OrdenInspeccionDAO {
                 rol
             );
 
-            // Crear Sismógrafo
+            // Crear Sismógrafo (estación asignada después)
             Sismografo sismografo = new Sismografo(
                 rs.getInt("sisId"),
                 rs.getTimestamp("fecha_instalacion").toLocalDateTime(),
-                rs.getInt("numero_serie")
+                rs.getInt("numero_serie"),
+                null
             );
 
             // Establecer estado del sismógrafo
@@ -174,15 +176,23 @@ public class OrdenInspeccionDAO {
             );
 
             // Crear Orden de Inspección
+            com.redseismica.model.Estado estadoOrden = estadoFromCodigo(rs.getString("estado"));
             OrdenInspeccion orden = new OrdenInspeccion(
                 rs.getInt("numero_orden"),
                 rs.getTimestamp("fecha_hora_emision").toLocalDateTime(),
                 rs.getTimestamp("fecha_hora_finalizacion") != null ? 
                     rs.getTimestamp("fecha_hora_finalizacion").toLocalDateTime() : null,
-                EstadoOrden.valueOf(rs.getString("estado")),
+                estadoOrden,
                 estacion,
                 empleado
             );
+
+            // Si la orden ya tiene datos de cierre en la BD, reflejarlos
+            Timestamp fechaCierreAll = rs.getTimestamp("fecha_hora_cierre");
+            if (fechaCierreAll != null) {
+                String observacion = rs.getString("observacion_cierre");
+                orden.cerrar(fechaCierreAll.toLocalDateTime(), observacion, estadoOrden);
+            }
 
             ordenes.add(orden);
         }
@@ -217,7 +227,7 @@ public class OrdenInspeccionDAO {
         Connection conn = DatabaseConfig.getConnection();
         PreparedStatement pstmt = conn.prepareStatement(sql);
         
-        pstmt.setString(1, orden.getEstado().name());
+    pstmt.setString(1, codigoFromEstado(orden.getEstado()));
         pstmt.setTimestamp(2, orden.getFechaHoraCierre() != null ? 
             Timestamp.valueOf(orden.getFechaHoraCierre()) : null);
         pstmt.setString(3, orden.getObservacionCierre());
@@ -225,5 +235,37 @@ public class OrdenInspeccionDAO {
         
         pstmt.executeUpdate();
         pstmt.close();
+    }
+
+    /**
+     * Convierte el código almacenado en la BD a una instancia de Estado
+     * que usa la aplicación (la clase Estado del modelo almacena el nombre
+     * legible, por eso hacemos el mapeo).
+     */
+    private static com.redseismica.model.Estado estadoFromCodigo(String codigo) {
+        if (codigo == null) return null;
+        return switch (codigo) {
+            case "CERRADA" -> new com.redseismica.model.Estado("Cerrada");
+            case "EN_CURSO" -> new com.redseismica.model.Estado("En curso");
+            case "COMPLETAMENTE_REALIZADA" -> new com.redseismica.model.Estado("Completamente Realizada");
+            default -> new com.redseismica.model.Estado(codigo);
+        };
+    }
+
+    /**
+     * Convierte una instancia de Estado (con nombre legible) al código que
+     * se persiste en la BD. Se intenta mapear los nombres conocidos; si no
+     * se reconoce, se genera un código a partir del nombre legible.
+     */
+    private static String codigoFromEstado(com.redseismica.model.Estado estado) {
+        if (estado == null) return null;
+        String nombre = estado.getNombre();
+        if (nombre == null) return null;
+        return switch (nombre) {
+            case "Cerrada" -> "CERRADA";
+            case "En curso" -> "EN_CURSO";
+            case "Completamente Realizada" -> "COMPLETAMENTE_REALIZADA";
+            default -> nombre.toUpperCase().replace(' ', '_');
+        };
     }
 }

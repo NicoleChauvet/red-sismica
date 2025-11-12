@@ -4,8 +4,7 @@ import com.redseismica.controller.GestorAdmInspeccion;
 import com.redseismica.database.DatabaseConfig;
 import com.redseismica.database.DataLoader;
 import com.redseismica.database.dao.EmpleadoDAO;
-import com.redseismica.database.dao.MotivoTipoDAO;
-import com.redseismica.database.dao.OrdenInspeccionDAO;
+// orders and motivos are now loaded on demand by the controllers/DAOs
 import com.redseismica.model.*;
 import com.redseismica.view.PantallaMenuPrincipal;
 
@@ -28,23 +27,11 @@ public class App {
             // 2. Cargar datos iniciales en la BD (si las tablas están vacías)
             DataLoader.loadInitialData();
 
-            // 3. Cargar TODOS los datos desde la BD
-            List<OrdenInspeccion> ordenes = OrdenInspeccionDAO.findAll();
+            // 3. Cargar sólo los empleados (órdenes y motivos se obtendrán bajo demanda)
             List<Empleado> empleados = EmpleadoDAO.findAll();
-            List<MotivoTipo> motivos = MotivoTipoDAO.findAll();
-
-            // Validar que haya datos cargados
-            if (ordenes == null || ordenes.isEmpty()) {
-                System.err.println("Advertencia: No se cargaron órdenes de inspección");
-                ordenes = List.of();
-            }
             if (empleados == null || empleados.isEmpty()) {
                 System.err.println("Advertencia: No se cargaron empleados");
                 empleados = List.of();
-            }
-            if (motivos == null || motivos.isEmpty()) {
-                System.err.println("Advertencia: No se cargaron motivos tipo");
-                motivos = List.of();
             }
 
             // 4. Obtener el primer empleado responsable de inspección para la sesión
@@ -63,8 +50,8 @@ public class App {
             Usuario usuarioRI = new Usuario("app_user", "password", responsableInspeccion);
             Sesion sesion = new Sesion(usuarioRI);
 
-            // 6. Crear el gestor con datos de la BD
-            GestorAdmInspeccion gestor = new GestorAdmInspeccion(sesion, null, ordenes, empleados, motivos);
+            // 6. Crear el gestor; Gestor carga órdenes y motivos bajo demanda desde la BD
+            GestorAdmInspeccion gestor = new GestorAdmInspeccion(sesion, null, empleados);
 
             // 7. Mostrar la interfaz gráfica
             SwingUtilities.invokeLater(() -> {
@@ -72,9 +59,8 @@ public class App {
             });
 
             System.out.println("✓ Aplicación inicializada exitosamente");
-            System.out.println("  - Órdenes cargadas: " + ordenes.size());
             System.out.println("  - Empleados cargados: " + empleados.size());
-            System.out.println("  - Motivos cargados: " + motivos.size());
+            System.out.println("  - Órdenes y motivos se cargarán bajo demanda desde la base de datos.");
 
         } catch (Exception ex) {
             System.err.println("Error fatal al inicializar la aplicación: " + ex.getMessage());

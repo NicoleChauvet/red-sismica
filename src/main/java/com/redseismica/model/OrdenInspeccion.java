@@ -15,14 +15,14 @@ public class OrdenInspeccion {
     private final LocalDateTime fechaHoraFinalizacion;
     private LocalDateTime fechaHoraCierre;
     private String observacionCierre;
-    private EstadoOrden estado;
+    private Estado estado;
     private final EstacionSismologica estacion;
     private final Empleado responsableInspeccion;
 
     public OrdenInspeccion(int nroOrden,
                            LocalDateTime fechaHoraInicio,
                            LocalDateTime fechaHoraFinalizacion,
-                           EstadoOrden estado,
+                           Estado estado,
                            EstacionSismologica estacion,
                            Empleado responsableInspeccion) {
         this.nroOrden = nroOrden;
@@ -49,12 +49,24 @@ public class OrdenInspeccion {
         return fechaHoraCierre;
     }
 
+    public void setFechaHoraCierre(LocalDateTime fechaHoraCierre) {
+        this.fechaHoraCierre = fechaHoraCierre;
+    }
+
     public String getObservacionCierre() {
         return observacionCierre;
     }
 
-    public EstadoOrden getEstado() {
+    public void setObservacionCierre(String observacionCierre) {
+        this.observacionCierre = observacionCierre;
+    }
+
+    public Estado getEstado() {
         return estado;
+    }
+
+    public void setEstado(Estado estado) {
+        this.estado = estado;
     }
 
     public EstacionSismologica getEstacion() {
@@ -84,7 +96,7 @@ public class OrdenInspeccion {
      * @return true si el estado es COMPLETAMENTE_REALIZADA
      */
     public boolean esCompletamenteRealizada() {
-        return estado == EstadoOrden.COMPLETAMENTE_REALIZADA;
+        return this.estado.sosCompletamenteRealizada();
     }
 
     /**
@@ -94,10 +106,10 @@ public class OrdenInspeccion {
      * @param fechaCierre  instante de cierre
      * @param observacion texto ingresado por el usuario
      */
-    public void cerrar(LocalDateTime fechaCierre, String observacion) {
-        this.fechaHoraCierre = fechaCierre;
-        this.observacionCierre = observacion;
-        this.estado = EstadoOrden.CERRADA;
+    public void cerrar(LocalDateTime fechaCierre, String observacion, Estado estado) {
+        this.setFechaHoraCierre(fechaCierre);
+        this.setObservacionCierre(observacion);
+        this.setEstado(estado);
     }
 
     /**

@@ -28,4 +28,9 @@ public class Usuario {
     public Empleado getEmpleado() {
         return empleado;
     }
+
+    public Empleado getRILogueado() {
+        return empleado;
+    }
+
 }

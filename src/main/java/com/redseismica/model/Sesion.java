@@ -39,6 +39,6 @@ public class Sesion {
      * asociado al usuario de la sesión.
      */
     public Empleado obtenerRILogueado() {
-        return usuario != null ? usuario.getEmpleado() : null;
+        return usuario != null ? usuario.getRILogueado() : null;
     }
 }

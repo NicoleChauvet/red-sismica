@@ -26,7 +26,7 @@ public class SismografoDAO {
         Connection conn = DatabaseConfig.getConnection();
         PreparedStatement pstmt = conn.prepareStatement(sql);
         
-        pstmt.setString(1, sismografo.getEstadoActual().getNombreEstado());
+        pstmt.setString(1, sismografo.getEstadoSismografo().getNombreEstado());
         pstmt.setTimestamp(2, java.sql.Timestamp.valueOf(sismografo.obtenerCEActual() != null ? 
             sismografo.obtenerCEActual().getFechaHoraInicio() : java.time.LocalDateTime.now()));
         pstmt.setInt(3, sismografo.getIdSismografo());

@@ -7,37 +7,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Entidad que modela un sismógrafo físico. Almacena un historial de cambios
- * de estado y delega en sus estados concretos el comportamiento frente a
- * determinadas operaciones (patrón State). Cada vez que se transita a un
- * nuevo estado se registra un {@link CambioEstadoSismografo} con fecha de
- * inicio y opcionalmente motivos y comentarios.
- */
 public class Sismografo {
     private final int idSismografo;
     private final LocalDateTime fechaAdquisicion;
     private final int nroSerie;
-    private EstadoSismografo estadoActual;
+    private EstacionSismologica estacionSismologica;
+    private EstadoSismografo estadoSismografo;
     private final List<CambioEstadoSismografo> historialEstados = new ArrayList<>();
 
-    /**
-     * Constructor básico. Crea el sismógrafo asignándole un estado inicial
-     * Online para simplificar el ejemplo. En un sistema real el estado
-     * inicial podría recibirse por parámetro.
-     *
-     * @param idSismografo identificador único
-     * @param fechaAdquisicion fecha de compra o adquisición
-     * @param nroSerie número de serie
-     */
-    public Sismografo(int idSismografo, LocalDateTime fechaAdquisicion, int nroSerie) {
+    public Sismografo(int idSismografo, LocalDateTime fechaAdquisicion, int nroSerie, EstacionSismologica estacionSismologica) {
         this.idSismografo = idSismografo;
         this.fechaAdquisicion = fechaAdquisicion;
         this.nroSerie = nroSerie;
+        this.estacionSismologica = estacionSismologica;
         // estado inicial
-        this.estadoActual = new Online();
+        this.estadoSismografo = new Online();
         // registrar cambio inicial
-        this.historialEstados.add(new CambioEstadoSismografo(estadoActual, fechaAdquisicion,
+        this.historialEstados.add(new CambioEstadoSismografo(estadoSismografo, fechaAdquisicion,
                 null, "Estado inicial", null));
     }
 
@@ -60,8 +46,8 @@ public class Sismografo {
      * Acceso al estado actual. Se utiliza principalmente por la interfaz de
      * usuario para mostrar el estado al operador.
      */
-    public EstadoSismografo getEstadoActual() {
-        return estadoActual;
+    public EstadoSismografo getEstadoSismografo() {
+        return estadoSismografo;
     }
 
     /**
@@ -94,7 +80,7 @@ public class Sismografo {
         if (actual != null) {
             actual.setFechaHoraFin(fechaHora);
         }
-        this.estadoActual = nuevoEstado;
+        this.estadoSismografo = nuevoEstado;
         // registrar nuevo cambio
         CambioEstadoSismografo nuevoambio = new CambioEstadoSismografo(nuevoEstado, fechaHora, motivos, comentario, responsable);
         historialEstados.add(nuevoambio);
@@ -132,7 +118,7 @@ public class Sismografo {
                                List<MotivoFueraServicio> motivos,
                                String comentario,
                                Empleado responsable) {
-        estadoActual.enviarAReparar(this, fechaHora, motivos, comentario, responsable);
+        estadoSismografo.enviarAReparar(this, fechaHora, motivos, comentario, responsable);
     }
 
     /**
@@ -142,6 +128,6 @@ public class Sismografo {
      * @param responsable responsable de la operación
      */
     public void ponerOnLine(LocalDateTime fechaHora, Empleado responsable) {
-        estadoActual.ponerOnLine(this, fechaHora, responsable);
+        estadoSismografo.ponerOnLine(this, fechaHora, responsable);
     }
 }

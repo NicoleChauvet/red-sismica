@@ -9,7 +9,6 @@ com\redseismica\model\InterfazMail.class
 com\redseismica\model\MotivoFueraServicio.class
 com\redseismica\view\PantallaAdmInspecciones$1.class
 com\redseismica\model\CambioEstadoSismografo.class
-com\redseismica\database\dao\OrdenInspeccionDAO.class
 com\redseismica\view\PantallaAdmInspecciones.class
 com\redseismica\database\dao\MotivoTipoDAO.class
 com\redseismica\database\DatabaseConfig.class
@@ -18,7 +17,6 @@ com\redseismica\database\dao\SismografoDAO.class
 com\redseismica\states\EstadoSismografo.class
 com\redseismica\app\ConsultarSismografo.class
 com\redseismica\model\MotivoTipo.class
-com\redseismica\model\EstadoOrden.class
 com\redseismica\model\Usuario.class
 com\redseismica\model\EstacionSismologica.class
 com\redseismica\database\DataLoader.class

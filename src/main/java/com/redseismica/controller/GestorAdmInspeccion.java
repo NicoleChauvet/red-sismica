@@ -1,13 +1,13 @@
 package com.redseismica.controller;
 
 import com.redseismica.model.*;
-import com.redseismica.states.InhabilitadoPorInspeccion;
 import com.redseismica.view.PantallaAdmInspecciones;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.sql.SQLException;
 
 /**
  * Controlador que orquesta la ejecución del caso de uso “Cerrar Orden de
@@ -22,13 +22,13 @@ public class GestorAdmInspeccion {
     private PantallaAdmInspecciones pantalla;
     private final PantallaCCRS pantallaCCRS = new PantallaCCRS();
     private final InterfazMail servicioMail = new InterfazMail();
+    private LocalDateTime ahora;
+    private Empleado RILogueado;
 
     /**
-     * Lista completa de órdenes disponibles en el sistema. En un sistema real
-     * se recuperaría desde una base de datos. Para la demostración se
-     * proporciona por el constructor.
+     * (Removed) Previously this field stored an in-memory copy of all orders.
+     * We now always read from the database and therefore this field was removed.
      */
-    private final List<OrdenInspeccion> todasLasOrdenes;
 
     /**
      * Lista de empleados para determinar los responsables de reparación a los
@@ -41,7 +41,7 @@ public class GestorAdmInspeccion {
      * fuera de servicio. Podrían recuperarse desde una tabla de
      * configuración.
      */
-    private final List<MotivoTipo> motivosDisponibles;
+    // motivos now loaded from DB on demand via MotivoTipoDAO
 
     // Estado interno de la interacción con la interfaz.
     private List<OrdenInspeccion> ordenesDisponibles;
@@ -54,20 +54,14 @@ public class GestorAdmInspeccion {
      *
      * @param sesionActiva sesión del usuario responsable de inspecciones
      * @param pantalla interfaz de administración de inspecciones
-     * @param todasLasOrdenes conjunto de órdenes precargadas
      * @param empleados lista de empleados para notificar
-     * @param motivosDisponibles lista de motivos disponibles
      */
     public GestorAdmInspeccion(Sesion sesionActiva,
                                PantallaAdmInspecciones pantalla,
-                               List<OrdenInspeccion> todasLasOrdenes,
-                               List<Empleado> empleados,
-                               List<MotivoTipo> motivosDisponibles) {
+                               List<Empleado> empleados) {
         this.sesionActiva = sesionActiva;
         this.pantalla = pantalla;
-        this.todasLasOrdenes = todasLasOrdenes;
         this.empleados = empleados;
-        this.motivosDisponibles = motivosDisponibles;
     }
 
     /**
@@ -85,8 +79,16 @@ public class GestorAdmInspeccion {
      * 
      * @return lista de motivos disponibles
      */
-    public List<MotivoTipo> obtenerMotivosDisponibles() {
-        return motivosDisponibles;
+    public List<MotivoTipo> buscarMotivoFueraLinea() {
+        try {
+            return com.redseismica.database.dao.MotivoTipoDAO.findAll();
+        } catch (Exception e) {
+            System.err.println("Error al leer motivos desde la BD: " + e.getMessage());
+            if (pantalla != null) {
+                pantalla.mostrarError("No se pudieron cargar los motivos desde la base de datos. Intente nuevamente más tarde.");
+            }
+            return List.of();
+        }
     }
 
     /**
@@ -96,8 +98,8 @@ public class GestorAdmInspeccion {
      * muestre al usuario.
      */
     public void opCerrarOrdenInspeccion() {
-        Empleado ri = sesionActiva.obtenerRILogueado();
-        this.ordenesDisponibles = buscarOrdenesInspeccion(ri);
+        RILogueado = sesionActiva.obtenerRILogueado();
+        this.ordenesDisponibles = buscarOrdenesInspeccion(RILogueado);
         ordenarPorFechaFinalizacionOI();
         pantalla.mostrarOrdenesInspeccion(ordenesDisponibles);
     }
@@ -106,12 +108,22 @@ public class GestorAdmInspeccion {
      * Filtra las órdenes del responsable logueado que estén completamente
      * realizadas y no se encuentren cerradas.
      */
-    private List<OrdenInspeccion> buscarOrdenesInspeccion(Empleado ri) {
-        return todasLasOrdenes.stream()
-                .filter(oi -> oi.esDeRILogueado(ri))
-                .filter(OrdenInspeccion::esCompletamenteRealizada)
-                .filter(oi -> oi.getEstado() != EstadoOrden.CERRADA)
-                .collect(Collectors.toList());
+    private List<OrdenInspeccion> buscarOrdenesInspeccion(Empleado RILogueado) {
+        // Cargar las órdenes directamente desde la base de datos y filtrar.
+        try {
+            List<OrdenInspeccion> ordenesBD = com.redseismica.database.dao.OrdenInspeccionDAO.findAll();
+            return ordenesBD.stream()
+                    .filter(oi -> oi.esDeRILogueado(RILogueado))
+                    .filter(OrdenInspeccion::esCompletamenteRealizada)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            // No caer en datos en memoria: informar a la UI y devolver lista vacía.
+            System.err.println("Error al leer órdenes desde la BD: " + e.getMessage());
+            if (pantalla != null) {
+                pantalla.mostrarError("No se pudo conectar a la base de datos. Intente nuevamente más tarde.");
+            }
+            return List.of();
+        }
     }
 
     /**
@@ -145,6 +157,8 @@ public class GestorAdmInspeccion {
      */
     public void tomarObservacion(String observacion) {
         this.observacion = observacion;
+        // Mostrar motivos cargados desde la base de datos
+        List<MotivoTipo> motivosDisponibles = buscarMotivoFueraLinea();
         pantalla.mostrarMotivos(motivosDisponibles);
     }
 
@@ -157,14 +171,9 @@ public class GestorAdmInspeccion {
      * @param comentarios lista de comentarios asociados, debe tener la misma
      *                    longitud que motivos
      */
-    public void tomarSeleccionMotivos(List<MotivoTipo> motivos, List<String> comentarios) {
-        List<MotivoFueraServicio> seleccion = new ArrayList<>();
-        if (motivos != null && comentarios != null) {
-            for (int i = 0; i < motivos.size() && i < comentarios.size(); i++) {
-                seleccion.add(new MotivoFueraServicio(motivos.get(i), comentarios.get(i)));
-            }
-        }
-        this.motivosSeleccionados = seleccion;
+    public void tomarSeleccionMotivos(List<MotivoFueraServicio> motivos) {
+        // Recibe la lista ya construida en la UI (cada elemento incluye su comentario)
+        this.motivosSeleccionados = motivos != null ? new ArrayList<>(motivos) : new ArrayList<>();
         pantalla.solicitarConfirmacion();
     }
 
@@ -198,9 +207,10 @@ public class GestorAdmInspeccion {
      * entidades correspondientemente. Finalmente se notifican los eventos.
      */
     private void cerrarOrdenInspeccion() {
-        LocalDateTime ahora = getFechaHoraActual();
+        ahora = getFechaHoraActual();
+        Estado estado = buscarEstadoDeOrdenCerrada();
         // Cerrar la orden
-        ordenSeleccionada.cerrar(ahora, observacion);
+        ordenSeleccionada.cerrar(ahora, observacion, estado);
         // Enviar sismógrafo a reparación
         ordenSeleccionada.ponerSismografoFueraDeServicio(ahora, motivosSeleccionados, observacion,
                 sesionActiva.obtenerRILogueado());
@@ -213,7 +223,7 @@ public class GestorAdmInspeccion {
         }
         
         // Notificaciones
-        enviarSismografoAReparacion();
+        enviarSismografoAReparacion(ahora, motivosSeleccionados, RILogueado);
     }
 
     /**
@@ -221,31 +231,8 @@ public class GestorAdmInspeccion {
      * Construye los textos incluyendo la identificación del sismógrafo,
      * el nuevo estado, la fecha/hora y los motivos seleccionados.
      */
-    private void enviarSismografoAReparacion() {
-        // Construir mensaje
-        int idSismografo = ordenSeleccionada.getEstacion().obtenerIDSismografo();
-        String nombreEstado = new InhabilitadoPorInspeccion().getNombreEstado();
-        // Realmente se cambia a FueraDeServicio, pero la especificación
-        // solicita incluir el nombre del estado Fuera de Servicio. Para ello
-        // recuperamos el nombre del nuevo estado desde la lista de cambios.
-        String estadoReal = ordenSeleccionada.getEstacion().getSismografo().getEstadoActual().getNombreEstado();
-        LocalDateTime fechaHora = ordenSeleccionada.getFechaHoraCierre();
-        StringBuilder motivosStr = new StringBuilder();
-        for (MotivoFueraServicio m : motivosSeleccionados) {
-            motivosStr.append("- ").append(m.getTipo().getDescripcion()).append(": ").append(m.getComentario()).append("\n");
-        }
-        String cuerpo = "Sismógrafo ID: " + idSismografo + "\n"
-                + "Nuevo estado: " + estadoReal + "\n"
-                + "Fecha y hora de registro: " + fechaHora + "\n"
-                + "Motivos:\n" + motivosStr;
-        // Correos a responsables de reparación
-        List<String> destinatarios = empleados.stream()
-                .filter(Empleado::sosResponsableReparacion)
-                .map(Empleado::getMail)
-                .collect(Collectors.toList());
-        servicioMail.enviarMail(cuerpo, destinatarios);
-        // Publicar en CCRS
-        pantallaCCRS.publicar(cuerpo);
+    private void enviarSismografoAReparacion(LocalDateTime ahora, List<MotivoFueraServicio> motivosSeleccionados, Empleado RILogueado) {
+        ordenSeleccionada.ponerSismografoFueraDeServicio(ahora, motivosSeleccionados, observacion, RILogueado);
     }
 
     /**
@@ -255,6 +242,27 @@ public class GestorAdmInspeccion {
     public LocalDateTime getFechaHoraActual() {
         return LocalDateTime.now();
     }
+
+    public Estado buscarEstadoDeOrdenCerrada() {
+        try {
+            List<Estado> estados = com.redseismica.database.dao.EstadoDAO.findAll();
+            Estado estadoCerrada = null;
+            for (Estado estado : estados) {
+                if (estado.sosCerrada()) {
+                    estadoCerrada = estado;
+                }
+            }
+            return estadoCerrada;
+
+        } catch (SQLException e) {
+            System.err.println("Error al leer estados desde la BD: " + e.getMessage());
+            if (pantalla != null) {
+                pantalla.mostrarError("No se pudieron cargar los estados desde la base de datos. Intente nuevamente más tarde.");
+            }
+            return null;
+        }
+    }
+
 
     /**
      * Finaliza la interacción con un mensaje de confirmación al usuario. En
