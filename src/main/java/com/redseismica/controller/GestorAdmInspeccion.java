@@ -204,6 +204,14 @@ public class GestorAdmInspeccion {
         // Enviar sismógrafo a reparación
         ordenSeleccionada.ponerSismografoFueraDeServicio(ahora, motivosSeleccionados, observacion,
                 sesionActiva.obtenerRILogueado());
+        
+        // Persistir la orden cerrada en la BD
+        try {
+            com.redseismica.database.dao.OrdenInspeccionDAO.update(ordenSeleccionada);
+        } catch (Exception e) {
+            System.err.println("Advertencia: No se pudo persistir el cierre de la orden en la BD: " + e.getMessage());
+        }
+        
         // Notificaciones
         enviarSismografoAReparacion();
     }

@@ -22,9 +22,9 @@ public class PantallaAdmInspecciones {
     private final GestorAdmInspeccion gestor;
     private JFrame frame;
     private JComboBox<OrdenInspeccion> ordenesComboBox;
-    private JTextArea observacionArea;
-    private JPanel motivosPanel;
-    private Map<JCheckBox, MotivoTipo> motivosCheckBoxes;
+    private JTextField observacionField;
+    
+    private JComboBox<MotivoTipo> motivosComboBox;
     private JTextField comentarioField;
     private JButton cerrarButton;
     private JLabel mensajeLabel;
@@ -128,22 +128,20 @@ public class PantallaAdmInspecciones {
         panelCentral.add(obsLabel, gbc);
         
         gbc.gridy++;
-        observacionArea = new JTextArea(6, 20);
-        observacionArea.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-        observacionArea.setLineWrap(true);
-        observacionArea.setWrapStyleWord(true);
-        observacionArea.setBackground(BLANCO);
-        observacionArea.setForeground(AZUL_OSCURO);
-        observacionArea.setCaretColor(AZUL_OSCURO);
-        observacionArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
-        
-        JScrollPane obsScroll = new JScrollPane(observacionArea);
-        obsScroll.setBorder(BorderFactory.createCompoundBorder(
+    gbc.gridy++;
+    // Campo de observación: mismo control/estilo que comentarioField
+        observacionField = new JTextField();
+        observacionField.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        observacionField.setBackground(BLANCO);
+        observacionField.setForeground(AZUL_OSCURO);
+        observacionField.setCaretColor(AZUL_OSCURO);
+        observacionField.setPreferredSize(new Dimension(0, 60));
+        observacionField.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(CELESTE, 2),
-            BorderFactory.createEmptyBorder(2, 2, 2, 2)
+            BorderFactory.createEmptyBorder(10, 15, 10, 15)
         ));
-        gbc.weighty = 0.15;
-        panelCentral.add(obsScroll, gbc);
+        gbc.weighty = 0;
+        panelCentral.add(observacionField, gbc);
 
         // Sección de motivos
         gbc.gridy++;
@@ -152,20 +150,40 @@ public class PantallaAdmInspecciones {
         panelCentral.add(motivosLabel, gbc);
         
         gbc.gridy++;
-        motivosCheckBoxes = new HashMap<>();
-        motivosPanel = new JPanel();
-        motivosPanel.setLayout(new BoxLayout(motivosPanel, BoxLayout.Y_AXIS));
-        motivosPanel.setBackground(BLANCO);
-        motivosPanel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
-        
-        JScrollPane motivosScroll = new JScrollPane(motivosPanel);
-        motivosScroll.setBorder(BorderFactory.createCompoundBorder(
+        motivosComboBox = new JComboBox<>();
+        motivosComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        motivosComboBox.setBackground(BLANCO);
+        motivosComboBox.setForeground(AZUL_OSCURO);
+        motivosComboBox.setPreferredSize(new Dimension(0, 50));
+        motivosComboBox.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(CELESTE, 2),
-            BorderFactory.createEmptyBorder(2, 2, 2, 2)
+            BorderFactory.createEmptyBorder(8, 10, 8, 10)
         ));
-        motivosScroll.setBackground(BLANCO);
-        gbc.weighty = 0.25;
-        panelCentral.add(motivosScroll, gbc);
+        // Renderer para mostrar la descripción del motivo
+        motivosComboBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                                                          int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof MotivoTipo) {
+                    setText(((MotivoTipo) value).getDescripcion());
+                } else if (value == null) {
+                    setText("Seleccione un motivo...");
+                }
+                setFont(new Font("Segoe UI", Font.PLAIN, 14));
+                setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+                if (isSelected) {
+                    setBackground(CELESTE);
+                    setForeground(AZUL_OSCURO);
+                } else {
+                    setBackground(BLANCO);
+                    setForeground(AZUL_OSCURO);
+                }
+                return this;
+            }
+        });
+        gbc.weighty = 0;
+        panelCentral.add(motivosComboBox, gbc);
 
         // Sección de comentario
         gbc.gridy++;
@@ -208,8 +226,14 @@ public class PantallaAdmInspecciones {
 
         frame.add(panelCentral, BorderLayout.CENTER);
 
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
+    frame.setLocationRelativeTo(null);
+    frame.setVisible(true);
+    // Asegurar que los campos estén habilitados y solicitar foco al campo de observación
+    observacionField.setEditable(true);
+    observacionField.setEnabled(true);
+    comentarioField.setEditable(true);
+    comentarioField.setEnabled(true);
+    javax.swing.SwingUtilities.invokeLater(() -> observacionField.requestFocusInWindow());
     }
 
 
@@ -299,25 +323,24 @@ public class PantallaAdmInspecciones {
             mostrarError("Seleccione una orden de inspección");
             return;
         }
-        // Capturar la observación
-        String obs = observacionArea.getText();
-        // Motivos seleccionados (desde los checkboxes)
-        java.util.List<MotivoTipo> motivosSeleccionados = new java.util.ArrayList<>();
-        for (Map.Entry<JCheckBox, MotivoTipo> entry : motivosCheckBoxes.entrySet()) {
-            if (entry.getKey().isSelected()) {
-                motivosSeleccionados.add(entry.getValue());
-            }
+    // Capturar la observación
+    String obs = observacionField.getText();
+        if (obs == null || obs.isBlank()) {
+            mostrarError("Ingrese una observación de cierre");
+            return;
         }
-        if (motivosSeleccionados.isEmpty()) {
+        // Motivo seleccionado (desde el desplegable)
+        MotivoTipo motivoSeleccionado = (MotivoTipo) motivosComboBox.getSelectedItem();
+        if (motivoSeleccionado == null) {
             mostrarError("Seleccione al menos un motivo");
             return;
         }
+        java.util.List<MotivoTipo> motivosSeleccionados = new java.util.ArrayList<>();
+        motivosSeleccionados.add(motivoSeleccionado);
         // Comentario – se aplica el mismo a todos los motivos en este ejemplo
         String comentario = comentarioField.getText();
         java.util.List<String> comentarios = new java.util.ArrayList<>();
-        for (int i = 0; i < motivosSeleccionados.size(); i++) {
-            comentarios.add(comentario);
-        }
+        comentarios.add(comentario);
         // Invocar al gestor
         gestor.tomarSeleccionOrden(seleccion);
         gestor.tomarObservacion(obs);
@@ -344,7 +367,7 @@ public class PantallaAdmInspecciones {
      * observación de cierre. Aquí simplemente se enfoca el campo de texto.
      */
     public void pedirObservacion() {
-        observacionArea.requestFocusInWindow();
+        observacionField.requestFocusInWindow();
     }
 
     /**
@@ -353,34 +376,14 @@ public class PantallaAdmInspecciones {
      * observación.
      */
     public void mostrarMotivos(java.util.List<MotivoTipo> motivos) {
-        motivosPanel.removeAll();
-        motivosCheckBoxes.clear();
-        
+        motivosComboBox.removeAllItems();
         if (motivos != null) {
             for (MotivoTipo motivo : motivos) {
-                JCheckBox checkbox = new JCheckBox("✓ " + motivo.getDescripcion());
-                checkbox.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-                checkbox.setBackground(BLANCO);
-                checkbox.setForeground(AZUL_OSCURO);
-                checkbox.setFocusPainted(false);
-                checkbox.setBorder(BorderFactory.createEmptyBorder(8, 5, 8, 5));
-                
-                // Cambiar color cuando está seleccionado
-                checkbox.addItemListener(evt -> {
-                    if (checkbox.isSelected()) {
-                        checkbox.setForeground(NARANJA);
-                    } else {
-                        checkbox.setForeground(AZUL_OSCURO);
-                    }
-                });
-                
-                motivosCheckBoxes.put(checkbox, motivo);
-                motivosPanel.add(checkbox);
+                motivosComboBox.addItem(motivo);
             }
         }
-        
-        motivosPanel.revalidate();
-        motivosPanel.repaint();
+        motivosComboBox.revalidate();
+        motivosComboBox.repaint();
     }
 
     /**

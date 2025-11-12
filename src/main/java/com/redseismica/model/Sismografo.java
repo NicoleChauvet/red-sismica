@@ -96,7 +96,16 @@ public class Sismografo {
         }
         this.estadoActual = nuevoEstado;
         // registrar nuevo cambio
-        historialEstados.add(new CambioEstadoSismografo(nuevoEstado, fechaHora, motivos, comentario, responsable));
+        CambioEstadoSismografo nuevoambio = new CambioEstadoSismografo(nuevoEstado, fechaHora, motivos, comentario, responsable);
+        historialEstados.add(nuevoambio);
+        
+        // Persistir el cambio en la BD (solo actualizar el estado del sismógrafo)
+        try {
+            com.redseismica.database.dao.SismografoDAO.updateEstado(this);
+        } catch (Exception e) {
+            System.err.println("Advertencia: No se pudo persistir el cambio de estado en la BD: " + e.getMessage());
+            // No lanzamos excepción para no interrumpir el flujo de la aplicación
+        }
     }
 
     /**

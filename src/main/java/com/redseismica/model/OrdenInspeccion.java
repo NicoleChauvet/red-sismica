@@ -62,14 +62,19 @@ public class OrdenInspeccion {
     }
 
     /**
-     * Indica si la orden pertenece al responsable logueado. Para simplificar
-     * comparamos las referencias de empleado directamente.
+     * Indica si la orden pertenece al responsable logueado. Compara por nombre
+     * y apellido para evitar problemas de referencias de objetos distintos
+     * que representan el mismo empleado.
      *
      * @param ri empleado logueado
      * @return true si el responsable de la orden es el mismo empleado
      */
     public boolean esDeRILogueado(Empleado ri) {
-        return responsableInspeccion == ri;
+        if (ri == null || responsableInspeccion == null) {
+            return false;
+        }
+        return responsableInspeccion.getNombre().equalsIgnoreCase(ri.getNombre())
+                && responsableInspeccion.getApellido().equalsIgnoreCase(ri.getApellido());
     }
 
     /**

@@ -3,6 +3,7 @@ com\redseismica\states\FueraDeServicio.class
 com\redseismica\model\PantallaCCRS.class
 com\redseismica\controller\GestorAdmInspeccion.class
 com\redseismica\model\Sesion.class
+com\redseismica\view\PantallaAdmInspecciones$3.class
 com\redseismica\model\Rol.class
 com\redseismica\model\InterfazMail.class
 com\redseismica\model\MotivoFueraServicio.class
@@ -13,7 +14,9 @@ com\redseismica\view\PantallaAdmInspecciones.class
 com\redseismica\database\dao\MotivoTipoDAO.class
 com\redseismica\database\DatabaseConfig.class
 com\redseismica\states\InhabilitadoPorInspeccion.class
+com\redseismica\database\dao\SismografoDAO.class
 com\redseismica\states\EstadoSismografo.class
+com\redseismica\app\ConsultarSismografo.class
 com\redseismica\model\MotivoTipo.class
 com\redseismica\model\EstadoOrden.class
 com\redseismica\model\Usuario.class

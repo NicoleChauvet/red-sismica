@@ -2,6 +2,7 @@ package com.redseismica.database;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -25,16 +26,31 @@ public class DataLoader {
         conn.setAutoCommit(false);
         
         try {
-            insertRoles(conn);
-            insertEmpleados(conn);
-            insertUsuarios(conn);
-            insertSismografos(conn);
-            insertEstaciones(conn);
-            insertOrdenesInspeccion(conn);
-            insertMotivosTipo(conn);
-            
+            // Solo insertar si las tablas están vacías
+            if (isTableEmpty(conn, "roles")) {
+                insertRoles(conn);
+            }
+            if (isTableEmpty(conn, "empleados")) {
+                insertEmpleados(conn);
+            }
+            if (isTableEmpty(conn, "usuarios")) {
+                insertUsuarios(conn);
+            }
+            if (isTableEmpty(conn, "sismografos")) {
+                insertSismografos(conn);
+            }
+            if (isTableEmpty(conn, "estaciones")) {
+                insertEstaciones(conn);
+            }
+            if (isTableEmpty(conn, "ordenes_inspeccion")) {
+                insertOrdenesInspeccion(conn);
+            }
+            if (isTableEmpty(conn, "motivos_tipo")) {
+                insertMotivosTipo(conn);
+            }
+
             conn.commit();
-            System.out.println("✓ Datos iniciales cargados exitosamente");
+            System.out.println("✓ Datos iniciales cargados exitosamente (si faltaban)");
         } catch (SQLException e) {
             conn.rollback();
             System.err.println("Error al cargar datos: " + e.getMessage());
@@ -42,6 +58,17 @@ public class DataLoader {
         } finally {
             conn.setAutoCommit(true);
         }
+    }
+
+    private static boolean isTableEmpty(Connection conn, String tableName) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM " + tableName;
+        try (PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1) == 0;
+            }
+        }
+        return true;
     }
 
     private static void insertRoles(Connection conn) throws SQLException {

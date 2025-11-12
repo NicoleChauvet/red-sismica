@@ -10,7 +10,8 @@ import java.sql.Statement;
  * Proporciona métodos para obtener conexiones y crear las tablas necesarias.
  */
 public class DatabaseConfig {
-    private static final String DB_URL = "jdbc:h2:mem:redseismica;DB_CLOSE_DELAY=-1";
+    // Usar archivo en disco para persistencia entre ejecuciones
+    private static final String DB_URL = "jdbc:h2:file:./data/redseismica;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE";
     private static final String DB_USER = "sa";
     private static final String DB_PASSWORD = "";
     
