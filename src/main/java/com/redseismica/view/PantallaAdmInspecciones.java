@@ -57,6 +57,7 @@ public class PantallaAdmInspecciones {
      * ventana. Se utiliza un BorderLayout para organizar los controles y un
      * panel central con GridBagLayout para mayor flexibilidad.
      */
+    // este es el metodo "habilitarPantalla()" del diagrama de clase/secuencia
     private void initUI() {
         frame = new JFrame("Administración de Inspecciones");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -445,6 +446,7 @@ public class PantallaAdmInspecciones {
      * Carga los datos iniciales. Debe llamarse después de que el gestor
      * tenga la referencia a esta pantalla.
      */
+    // este es el metodo "tomarOpCerrarOrdenInspeccion()" del diagrama de clase/secuencia
     public void cargarDatos() {
         gestor.opCerrarOrdenInspeccion();
         // Cargar también los motivos disponibles desde el inicio
@@ -518,11 +520,13 @@ public class PantallaAdmInspecciones {
         System.out.println("[PantallaAdmInspecciones] Total motivos a enviar: " + motivosTipos.size());
 
         // Invocar al gestor con los datos recopilados
+        // aca se encuentran los metodos de tomar y pedir del diagrama de clase/secuencia (orden, observacion, motivos y comentarios)
         gestor.tomarSeleccionOrden(seleccion);
         gestor.tomarObservacion(obs);
         gestor.tomarSeleccionMotivos(motivosTipos);
         gestor.tomarSeleccionComentarios(comentarios);
         
+        // este es el metodo "tomarConfirmacion()" del diagrama de clase/secuencia
         try {
             System.out.println("[PantallaAdmInspecciones] Llamando a tomarConfirmacion()");
             gestor.tomarConfirmacion();
@@ -577,6 +581,7 @@ public class PantallaAdmInspecciones {
      * diálogo modal y, si el usuario cancela, aborta la operación. La
      * confirmación positiva continúa con la llamada al gestor.
      */
+    // este es el metodo "solicitarConfCierreOrdenInspeccion()" del diagrama de clase/secuencia
     public void solicitarConfirmacion() {
         int option = JOptionPane.showConfirmDialog(frame,
                 "¿Está seguro de que desea cerrar la orden de inspección?",
