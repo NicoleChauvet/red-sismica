@@ -32,6 +32,7 @@ public class PantallaAdmInspecciones {
     private JList<MotivoFueraServicio> motivosList;
     private JButton addMotivoButton;
     private JButton removeMotivoButton;
+    private JButton registrarObservacionButton;
     private JButton cerrarButton;
     private JLabel mensajeLabel;
     
@@ -149,6 +150,28 @@ public class PantallaAdmInspecciones {
         gbc.weighty = 0;
         panelCentral.add(observacionField, gbc);
 
+        // Botón para registrar explícitamente la observación (opcional)
+        gbc.gridy++;
+        JPanel obsBtnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        obsBtnPanel.setBackground(GRIS_CLARO);
+        registrarObservacionButton = new JButton("Registrar observación");
+        registrarObservacionButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        registrarObservacionButton.addActionListener(evt -> {
+            String obsText = observacionField.getText();
+            if (obsText == null || obsText.isBlank()) {
+                mostrarError("Ingrese una observación antes de registrarla");
+                return;
+            }
+            if (gestor != null) {
+                gestor.tomarObservacion(obsText);
+                mostrarMensaje("Observación registrada");
+                // Enfocar en selección de motivos
+                motivosComboBox.requestFocusInWindow();
+            }
+        });
+        obsBtnPanel.add(registrarObservacionButton);
+        panelCentral.add(obsBtnPanel, gbc);
+
         // Sección de motivos
         gbc.gridy++;
         gbc.weighty = 0;
@@ -208,6 +231,8 @@ public class PantallaAdmInspecciones {
             BorderFactory.createLineBorder(CELESTE, 2),
             BorderFactory.createEmptyBorder(10, 15, 10, 15)
         ));
+        // Comentario inicialmente deshabilitado hasta que se seleccione un motivo
+        comentarioField.setEnabled(false);
         panelCentral.add(comentarioField, gbc);
 
         // Panel para agregar/remover motivos y mostrar la lista
@@ -219,8 +244,10 @@ public class PantallaAdmInspecciones {
         // Botones para agregar y remover motivos
         JPanel motivosBtnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         motivosBtnPanel.setBackground(GRIS_CLARO);
-        addMotivoButton = new JButton("Agregar motivo");
-        removeMotivoButton = new JButton("Quitar motivo");
+    addMotivoButton = new JButton("Agregar motivo");
+    removeMotivoButton = new JButton("Quitar motivo");
+    // Agregar motivo no disponible hasta seleccionar un motivo en el combo
+    addMotivoButton.setEnabled(false);
         addMotivoButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         removeMotivoButton.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         motivosBtnPanel.add(addMotivoButton);
@@ -252,13 +279,26 @@ public class PantallaAdmInspecciones {
         addMotivoButton.addActionListener(evt -> {
             MotivoTipo seleccionado = (MotivoTipo) motivosComboBox.getSelectedItem();
             String comentarioText = comentarioField.getText();
+            
             if (seleccionado == null) {
                 mostrarError("Seleccione un motivo antes de agregar");
                 return;
             }
-            MotivoFueraServicio nuevo = new MotivoFueraServicio(seleccionado, comentarioText == null ? "" : comentarioText);
+            
+            // Validar que el comentario no esté vacío
+            if (comentarioText == null || comentarioText.trim().isEmpty()) {
+                mostrarError("Por favor ingrese un comentario para el motivo antes de agregarlo");
+                comentarioField.requestFocusInWindow();
+                return;
+            }
+            
+            MotivoFueraServicio nuevo = new MotivoFueraServicio(seleccionado, comentarioText);
             motivosListModel.addElement(nuevo);
             comentarioField.setText("");
+            // Después de agregar, dejar campo comentario deshabilitado hasta nueva selección
+            comentarioField.setEnabled(false);
+            addMotivoButton.setEnabled(false);
+            mostrarMensaje("Motivo agregado: " + seleccionado.getDescripcion());
         });
 
         removeMotivoButton.addActionListener(evt -> {
@@ -267,6 +307,23 @@ public class PantallaAdmInspecciones {
                 motivosListModel.removeElement(sel);
             } else {
                 mostrarError("Seleccione un motivo agregado para quitarlo");
+            }
+        });
+
+        // Habilitar/deshabilitar campo comentario y botón Agregar según selección
+        motivosComboBox.addItemListener(e -> {
+            if (e.getStateChange() == java.awt.event.ItemEvent.SELECTED) {
+                Object sel = motivosComboBox.getSelectedItem();
+                boolean has = sel != null;
+                comentarioField.setEnabled(has);
+                addMotivoButton.setEnabled(has);
+                if (has) comentarioField.requestFocusInWindow();
+            } else if (e.getStateChange() == java.awt.event.ItemEvent.DESELECTED) {
+                // si quedó sin selección
+                if (motivosComboBox.getSelectedItem() == null) {
+                    comentarioField.setEnabled(false);
+                    addMotivoButton.setEnabled(false);
+                }
             }
         });
 
@@ -279,6 +336,10 @@ public class PantallaAdmInspecciones {
         cerrarButton = createStyledButton("🔒 Cerrar Orden de Inspección");
         cerrarButton.addActionListener(this::cerrarOrdenAction);
         buttonPanel.add(cerrarButton);
+        
+        JButton cancelarButton = createStyledCancelButton("❌ Cancelar");
+        cancelarButton.addActionListener(this::cancelarAction);
+        buttonPanel.add(cancelarButton);
         
         panelCentral.add(buttonPanel, gbc);
 
@@ -384,38 +445,79 @@ public class PantallaAdmInspecciones {
      * del gestor.
      */
     private void cerrarOrdenAction(ActionEvent e) {
+        System.out.println("[PantallaAdmInspecciones] cerrarOrdenAction iniciado");
+        
         OrdenInspeccion seleccion = (OrdenInspeccion) ordenesComboBox.getSelectedItem();
         if (seleccion == null) {
             mostrarError("Seleccione una orden de inspección");
             return;
         }
-    // Capturar la observación
-    String obs = observacionField.getText();
+        System.out.println("[PantallaAdmInspecciones] Orden seleccionada: " + seleccion.getNroOrden());
+        
+        // Capturar la observación
+        String obs = observacionField.getText();
         if (obs == null || obs.isBlank()) {
             mostrarError("Ingrese una observación de cierre");
             return;
         }
-        // Permitir al usuario agregar tantos motivos como quiera: en la UI
-        // proveemos un simple flujo en el que el usuario puede seleccionar
-        // un motivo, escribir un comentario y pulsar "Agregar motivo".
-        // Para mantener los cambios mínimos, si el campo de comentario está
-        // vacío asumimos comentario vacío.
-        java.util.List<MotivoFueraServicio> motivosSeleccionados = new java.util.ArrayList<>();
-        // Añadir el motivo actualmente seleccionado si existe
-        MotivoTipo motivoSeleccionado = (MotivoTipo) motivosComboBox.getSelectedItem();
-        String comentario = comentarioField.getText();
-        if (motivoSeleccionado != null) {
-            motivosSeleccionados.add(new MotivoFueraServicio(motivoSeleccionado, comentario == null ? "" : comentario));
+        System.out.println("[PantallaAdmInspecciones] Observación: " + obs);
+        
+        // Recolectar todos los motivos agregados en la lista dinámica
+        java.util.List<MotivoTipo> motivosTipos = new java.util.ArrayList<>();
+        java.util.List<String> comentarios = new java.util.ArrayList<>();
+
+        for (int i = 0; i < motivosListModel.getSize(); i++) {
+            MotivoFueraServicio mfs = motivosListModel.getElementAt(i);
+            if (mfs != null) {
+                motivosTipos.add(mfs.getTipo());
+                comentarios.add(mfs.getComentario() == null ? "" : mfs.getComentario());
+                System.out.println("[PantallaAdmInspecciones] Motivo agregado: " + mfs.getTipo().getDescripcion());
+            }
         }
-        // Nota: para una UI completa con lista dinámica de motivos se podría
-        // añadir un panel con filas y un botón "Agregar motivo" que inserte
-        // elementos en una lista visible; aquí usamos la lista con un único
-        // motivo seleccionado en el momento de enviar.
-        // Invocar al gestor
+
+        // Si el usuario no pulsó "Agregar motivo" pero dejó un motivo
+        // seleccionado con comentario, tratarlo como implícito y añadirlo
+        // a las listas siempre que no esté ya presente.
+        MotivoTipo motivoActual = (MotivoTipo) motivosComboBox.getSelectedItem();
+        String comentarioActual = comentarioField.getText() == null ? "" : comentarioField.getText();
+        if (motivoActual != null && !comentarioActual.isBlank()) {
+            boolean existe = false;
+            for (int i = 0; i < motivosTipos.size(); i++) {
+                MotivoTipo t = motivosTipos.get(i);
+                String c = comentarios.get(i);
+                if (t != null && t.getDescripcion().equals(motivoActual.getDescripcion()) && c.equals(comentarioActual)) {
+                    existe = true;
+                    break;
+                }
+            }
+            if (!existe && motivosTipos.size() < 5) { // Limitar a 5 motivos máximo
+                motivosTipos.add(motivoActual);
+                comentarios.add(comentarioActual);
+                System.out.println("[PantallaAdmInspecciones] Motivo implícito agregado: " + motivoActual.getDescripcion());
+            }
+        }
+
+        if (motivosTipos.isEmpty()) {
+            mostrarError("Debe agregar al menos un motivo para fuera de servicio");
+            return;
+        }
+        
+        System.out.println("[PantallaAdmInspecciones] Total motivos a enviar: " + motivosTipos.size());
+
+        // Invocar al gestor con los datos recopilados
         gestor.tomarSeleccionOrden(seleccion);
         gestor.tomarObservacion(obs);
-        gestor.tomarSeleccionMotivos(motivosSeleccionados);
-        gestor.tomarConfirmacion();
+        gestor.tomarSeleccionMotivos(motivosTipos);
+        gestor.tomarSeleccionComentarios(comentarios);
+        
+        try {
+            System.out.println("[PantallaAdmInspecciones] Llamando a tomarConfirmacion()");
+            gestor.tomarConfirmacion();
+            System.out.println("[PantallaAdmInspecciones] tomarConfirmacion() completado");
+        } catch (java.sql.SQLException ex) {
+            mostrarError("Error al confirmar el cierre: " + ex.getMessage());
+            ex.printStackTrace();
+        }
     }
 
     /**
@@ -469,6 +571,65 @@ public class PantallaAdmInspecciones {
         if (option != JOptionPane.YES_OPTION) {
             mostrarMensaje("Operación cancelada por el usuario.");
         }
+    }
+
+    /**
+     * Crea un botón con estilo personalizado para cancelar.
+     */
+    private JButton createStyledCancelButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        button.setPreferredSize(new Dimension(150, 45));
+        button.setBackground(new Color(200, 200, 200)); // Gris para cancelar
+        button.setForeground(AZUL_OSCURO);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Efecto hover
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(220, 220, 220));
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(200, 200, 200));
+            }
+        });
+        
+        return button;
+    }
+
+    /**
+     * Acción del botón cancelar. Cierra la ventana y vuelve al menú principal.
+     */
+    private void cancelarAction(ActionEvent e) {
+        int option = JOptionPane.showConfirmDialog(frame,
+                "¿Está seguro de que desea cancelar? Se perderán los cambios sin guardar.",
+                "Confirmar cancelación",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+        
+        if (option == JOptionPane.YES_OPTION) {
+            mostrarMensaje("Operación cancelada.");
+            volverAlMenuPrincipal();
+        }
+    }
+
+    /**
+     * Vuelve a la pantalla del menú principal cerrando esta ventana.
+     */
+    public void volverAlMenuPrincipal() {
+        // Limpiar los campos
+        observacionField.setText("");
+        comentarioField.setText("");
+        motivosListModel.clear();
+        motivosComboBox.removeAllItems();
+        // Cerrar la pantalla y volver al menú principal
+        frame.dispose();
+        SwingUtilities.invokeLater(() -> {
+            gestor.setPantalla(null);
+            new PantallaMenuPrincipal(gestor);
+        });
     }
 
     /**

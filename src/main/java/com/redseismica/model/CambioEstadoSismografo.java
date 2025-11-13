@@ -13,58 +13,20 @@ import java.util.List;
  * cambio está vigente.
  */
 public class CambioEstadoSismografo {
-
-    /** Estado que cobra vigencia con este registro */
-    private final EstadoSismografo estado;
     private final LocalDateTime fechaHoraInicio;
     private LocalDateTime fechaHoraFin;
-    private final List<MotivoFueraServicio> motivos;
-    private final String comentario;
-    private final Empleado responsable;
+    private List<MotivoFueraServicio> motivos;
 
-    /**
-     * Crea un nuevo cambio de estado. Para estados que no requieren motivos
-     * puede pasarse null o una lista vacía.
-     *
-     * @param estado     estado que inicia
-     * @param inicio     fecha/hora de inicio de vigencia
-     * @param motivos    motivos asociados (pueden ser null)
-     * @param comentario comentario libre (puede ser null)
-     * @param responsable empleado responsable del cambio
-     */
-    public CambioEstadoSismografo(EstadoSismografo estado,
-                                  LocalDateTime inicio,
-                                  List<MotivoFueraServicio> motivos,
-                                  String comentario,
-                                  Empleado responsable) {
-        this.estado = estado;
+    public CambioEstadoSismografo(LocalDateTime inicio) {
         this.fechaHoraInicio = inicio;
-        this.motivos = motivos;
-        this.comentario = comentario;
-        this.responsable = responsable;
+        this.motivos = new java.util.ArrayList<>();
     }
-
-    /**
-     * Indica si este cambio es el vigente (no tiene fecha de fin).
-     *
-     * @return true si la fecha de fin es null
-     */
     public boolean sosActual() {
         return fechaHoraFin == null;
     }
 
-    /**
-     * Fija la fecha/hora de finalización de vigencia. Se utiliza al cerrar un
-     * cambio de estado previo antes de registrar uno nuevo.
-     *
-     * @param fin fecha/hora de fin
-     */
     public void setFechaHoraFin(LocalDateTime fin) {
         this.fechaHoraFin = fin;
-    }
-
-    public EstadoSismografo getEstado() {
-        return estado;
     }
 
     public LocalDateTime getFechaHoraInicio() {
@@ -79,11 +41,8 @@ public class CambioEstadoSismografo {
         return motivos;
     }
 
-    public String getComentario() {
-        return comentario;
-    }
-
-    public Empleado getResponsable() {
-        return responsable;
+    public void crearMotivoFueraServicio(MotivoTipo motivo, String comentario) {
+        MotivoFueraServicio mfs = new MotivoFueraServicio(motivo, comentario);
+        motivos.add(mfs);
     }
 }

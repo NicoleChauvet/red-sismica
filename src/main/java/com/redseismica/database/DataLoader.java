@@ -39,6 +39,10 @@ public class DataLoader {
             if (isTableEmpty(conn, "sismografos")) {
                 insertSismografos(conn);
             }
+            // Insertar cambios de estado iniciales para los sismógrafos si faltan
+            if (isTableEmpty(conn, "cambios_estado_sismografo")) {
+                insertCambiosEstadoIniciales(conn);
+            }
             if (isTableEmpty(conn, "estaciones")) {
                 insertEstaciones(conn);
             }
@@ -124,7 +128,7 @@ public class DataLoader {
     }
 
     private static void insertUsuarios(Connection conn) throws SQLException {
-        String sql = "INSERT INTO usuarios (username, password, empleado_id) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO usuarios (nombreUsuario, password, empleado_id) VALUES (?, ?, ?)";
         PreparedStatement pstmt = conn.prepareStatement(sql);
         
         pstmt.setString(1, "jperez");
@@ -186,6 +190,37 @@ public class DataLoader {
         
         pstmt.close();
         System.out.println("  - Sismógrafos insertados");
+    }
+
+    private static void insertCambiosEstadoIniciales(Connection conn) throws SQLException {
+        // Si no existen cambios de estado, crear uno por cada sismógrafo con
+        // la información de estado_actual y fecha_hora_estado almacenada.
+        String select = "SELECT id, estado_actual, fecha_hora_estado FROM sismografos";
+        try (PreparedStatement sel = conn.prepareStatement(select);
+             ResultSet rs = sel.executeQuery()) {
+            String insert = "INSERT INTO cambios_estado_sismografo (sismografo_id, fecha_hora, estado, observacion, empleado_id) VALUES (?, ?, ?, ?, ?)";
+            try (PreparedStatement ins = conn.prepareStatement(insert)) {
+                while (rs.next()) {
+                    int sId = rs.getInt("id");
+                    java.sql.Timestamp fh = rs.getTimestamp("fecha_hora_estado");
+                    String estado = rs.getString("estado_actual");
+                    if (estado == null) estado = "Online";
+                    if (fh == null) fh = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
+                    ins.setInt(1, sId);
+                    ins.setTimestamp(2, fh);
+                    ins.setString(3, estado);
+                    ins.setString(4, null);
+                    ins.setNull(5, java.sql.Types.INTEGER);
+                    try {
+                        ins.executeUpdate();
+                    } catch (SQLException ex) {
+                        // si ya existe o falla por constraint, continuamos
+                        System.err.println("Advertencia al insertar cambio inicial para sismografo " + sId + ": " + ex.getMessage());
+                    }
+                }
+            }
+        }
+        System.out.println("  - Cambios de estado iniciales insertados para sismógrafos (si faltaban)");
     }
 
     private static void insertEstaciones(Connection conn) throws SQLException {

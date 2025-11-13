@@ -15,4 +15,8 @@ public class Rol {
     public String getNombre() {
         return nombre;
     }
+
+    public boolean sosResponsableReparacion() {
+        return this.nombre.equals("ResponsableReparacion");
+    }
 }

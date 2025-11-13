@@ -3,12 +3,6 @@ package com.redseismica.model;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Modelo de una orden de inspección sobre una estación sismológica. Contiene
- * las fechas de inicio, finalización y cierre, así como la observación
- * registrada al cerrarla. Una orden se asocia a un responsable de
- * inspecciones para permitir filtrar por usuario logueado.
- */
 public class OrdenInspeccion {
     private final int nroOrden;
     private final LocalDateTime fechaHoraInicio;
@@ -73,14 +67,6 @@ public class OrdenInspeccion {
         return estacion;
     }
 
-    /**
-     * Indica si la orden pertenece al responsable logueado. Compara por nombre
-     * y apellido para evitar problemas de referencias de objetos distintos
-     * que representan el mismo empleado.
-     *
-     * @param ri empleado logueado
-     * @return true si el responsable de la orden es el mismo empleado
-     */
     public boolean esDeRILogueado(Empleado ri) {
         if (ri == null || responsableInspeccion == null) {
             return false;
@@ -89,44 +75,22 @@ public class OrdenInspeccion {
                 && responsableInspeccion.getApellido().equalsIgnoreCase(ri.getApellido());
     }
 
-    /**
-     * Comprueba si la orden está completamente realizada, según se define en
-     * la documentación. En este ejemplo se evalúa el estado.
-     *
-     * @return true si el estado es COMPLETAMENTE_REALIZADA
-     */
     public boolean esCompletamenteRealizada() {
         return this.estado.sosCompletamenteRealizada();
     }
 
-    /**
-     * Cierra la orden asignándole la fecha/hora de cierre, la observación y
-     * actualizando el estado a CERRADA.
-     *
-     * @param fechaCierre  instante de cierre
-     * @param observacion texto ingresado por el usuario
-     */
     public void cerrar(LocalDateTime fechaCierre, String observacion, Estado estado) {
         this.setFechaHoraCierre(fechaCierre);
         this.setObservacionCierre(observacion);
         this.setEstado(estado);
     }
 
-    /**
-     * Solicita a la estación asociada que ponga su sismógrafo fuera de
-     * servicio con los datos especificados.
-     *
-     * @param fechaHora   instante de cambio de estado
-     * @param motivos     lista de motivos seleccionados
-     * @param comentario  comentario adicional
-     * @param responsable empleado responsable
-     */
     public void ponerSismografoFueraDeServicio(LocalDateTime fechaHora,
-                                               List<MotivoFueraServicio> motivos,
-                                               String comentario,
+                                               List<MotivoTipo> motivos,
+                                               List<String> comentarios,
                                                Empleado responsable) {
         if (estacion != null) {
-            estacion.ponerSismografoFueraDeServicio(fechaHora, motivos, comentario, responsable);
+            estacion.ponerSismografoFueraDeServicio(fechaHora, motivos, comentarios, responsable);
         }
     }
 

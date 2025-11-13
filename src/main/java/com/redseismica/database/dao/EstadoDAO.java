@@ -32,9 +32,22 @@ public class EstadoDAO {
 				Estado estado = mapCodigoToEstado(codigo);
 				if (estado != null) res.add(estado);
 			}
+			return res;
+		} catch (SQLException ex) {
+			// Si la consulta falla por esquema o por versiones de la BD,
+			// devolvemos una lista por defecto para mantener la aplicación
+			// usable y sugerir al usuario revisar/migrar la base.
+			System.err.println("EstadoDAO.findAll: error al consultar estados en la BD: " + ex.getMessage());
+			System.err.println("EstadoDAO.findAll: devolviendo lista por defecto. Recomendado: revisar script de migración/poblado.");
+			List<Estado> defaults = new ArrayList<>();
+			defaults.add(new Estado("Cerrada"));
+			defaults.add(new Estado("En curso"));
+			defaults.add(new Estado("Completamente Realizada"));
+			defaults.add(new Estado("Online"));
+			defaults.add(new Estado("Fuera de Servicio"));
+			defaults.add(new Estado("Inhabilitado por inspección"));
+			return defaults;
 		}
-
-		return res;
 	}
 
 	private static Estado mapCodigoToEstado(String codigo) {

@@ -46,6 +46,6 @@ public class Empleado {
      * sistema real se podrían tener permisos explícitos.
      */
     public boolean sosResponsableReparacion() {
-        return rol != null && "ResponsableReparacion".equalsIgnoreCase(rol.getNombre());
+        return this.rol.sosResponsableReparacion();
     }
 }

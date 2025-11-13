@@ -10,8 +10,8 @@ import java.sql.Statement;
  * Proporciona métodos para obtener conexiones y crear las tablas necesarias.
  */
 public class DatabaseConfig {
-    // Usar archivo en disco para persistencia entre ejecuciones
-    private static final String DB_URL = "jdbc:h2:file:./data/redseismica;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE";
+    // Usar base de datos en archivo para persistencia (sin AUTO_SERVER para evitar problemas de puerto)
+    private static final String DB_URL = "jdbc:h2:file:./data/redseismica";
     private static final String DB_USER = "sa";
     private static final String DB_PASSWORD = "";
     
@@ -25,6 +25,11 @@ public class DatabaseConfig {
      */
     public static Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
+            try {
+                Class.forName("org.h2.Driver");
+            } catch (ClassNotFoundException e) {
+                throw new SQLException("Driver H2 no encontrado", e);
+            }
             connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
         }
         return connection;
@@ -51,9 +56,9 @@ public class DatabaseConfig {
         stmt.execute("""
             CREATE TABLE IF NOT EXISTS empleados (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                nombre VARCHAR(100) NOT NULL,
                 apellido VARCHAR(100) NOT NULL,
                 mail VARCHAR(150) NOT NULL,
+                nombre VARCHAR(100) NOT NULL,
                 telefono VARCHAR(20),
                 rol_id INT NOT NULL,
                 FOREIGN KEY (rol_id) REFERENCES roles(id)
@@ -64,8 +69,8 @@ public class DatabaseConfig {
         stmt.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                username VARCHAR(50) NOT NULL UNIQUE,
                 password VARCHAR(100) NOT NULL,
+                nombreUsuario VARCHAR(50) NOT NULL UNIQUE,
                 empleado_id INT NOT NULL,
                 FOREIGN KEY (empleado_id) REFERENCES empleados(id)
             )

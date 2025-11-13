@@ -55,23 +55,24 @@ public class OrdenInspeccionDAO {
                 rol
             );
 
-            // Crear Sismógrafo (estación asignada después)
+            // Crear Sismógrafo (estación asignada después). Inyectamos
+            // el estado en el constructor (el objeto EstadoSismografo requiere
+            // un nombre), y registramos el cambio de estado inicial si hay
+            // fecha disponible.
+            EstadoSismografo estado = getEstadoFromString(rs.getString("estado_actual"));
             Sismografo sismografo = new Sismografo(
                 rs.getInt("sisId"),
                 rs.getTimestamp("fecha_instalacion").toLocalDateTime(),
                 rs.getInt("numero_serie"),
-                null
+                null,
+                estado
             );
 
-            // Establecer estado del sismógrafo
-            EstadoSismografo estado = getEstadoFromString(rs.getString("estado_actual"));
-            sismografo.setEstado(
-                estado,
-                rs.getTimestamp("fecha_hora_estado").toLocalDateTime(),
-                null,
-                "Estado inicial",
-                empleado
-            );
+            Timestamp fhEstado = rs.getTimestamp("fecha_hora_estado");
+            if (fhEstado != null) {
+                CambioEstadoSismografo ce = new CambioEstadoSismografo(fhEstado.toLocalDateTime());
+                sismografo.setCambioEstado(ce);
+            }
 
             // Crear Estación
             EstacionSismologica estacion = new EstacionSismologica(
@@ -148,23 +149,22 @@ public class OrdenInspeccionDAO {
                 rol
             );
 
-            // Crear Sismógrafo (estación asignada después)
+            // Crear Sismógrafo (estación asignada después). Pasamos el
+            // estado al constructor y registramos el cambio inicial si hay fecha.
+            EstadoSismografo estado = getEstadoFromString(rs.getString("estado_actual"));
             Sismografo sismografo = new Sismografo(
                 rs.getInt("sisId"),
                 rs.getTimestamp("fecha_instalacion").toLocalDateTime(),
                 rs.getInt("numero_serie"),
-                null
+                null,
+                estado
             );
 
-            // Establecer estado del sismógrafo
-            EstadoSismografo estado = getEstadoFromString(rs.getString("estado_actual"));
-            sismografo.setEstado(
-                estado,
-                rs.getTimestamp("fecha_hora_estado").toLocalDateTime(),
-                null,
-                "Estado inicial",
-                empleado
-            );
+            Timestamp fhEstadoAll = rs.getTimestamp("fecha_hora_estado");
+            if (fhEstadoAll != null) {
+                CambioEstadoSismografo ce = new CambioEstadoSismografo(fhEstadoAll.toLocalDateTime());
+                sismografo.setCambioEstado(ce);
+            }
 
             // Crear Estación
             EstacionSismologica estacion = new EstacionSismologica(
@@ -203,11 +203,12 @@ public class OrdenInspeccionDAO {
     }
 
     private static EstadoSismografo getEstadoFromString(String estado) {
+        if (estado == null) return new Online("Online");
         return switch (estado) {
-            case "Online" -> new Online();
-            case "FueraDeServicio" -> new FueraDeServicio();
-            case "InhabilitadoPorInspeccion" -> new InhabilitadoPorInspeccion();
-            default -> new Online();
+            case "Online" -> new Online("Online");
+            case "FueraDeServicio" -> new FueraDeServicio("Fuera de Servicio");
+            case "InhabilitadoPorInspeccion" -> new InhabilitadoPorInspeccion("Inhabilitado por inspección");
+            default -> new Online(estado);
         };
     }
 

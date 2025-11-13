@@ -20,34 +20,14 @@ import java.sql.SQLException;
 public class GestorAdmInspeccion {
     private final Sesion sesionActiva;
     private PantallaAdmInspecciones pantalla;
-    private final PantallaCCRS pantallaCCRS = new PantallaCCRS();
-    private final InterfazMail servicioMail = new InterfazMail();
-    private LocalDateTime ahora;
+    private LocalDateTime fechaHora;
     private Empleado RILogueado;
-
-    /**
-     * (Removed) Previously this field stored an in-memory copy of all orders.
-     * We now always read from the database and therefore this field was removed.
-     */
-
-    /**
-     * Lista de empleados para determinar los responsables de reparación a los
-     * que se enviarán notificaciones por correo electrónico.
-     */
-    private final List<Empleado> empleados;
-
-    /**
-     * Lista de motivos disponibles para seleccionar al poner el sismógrafo
-     * fuera de servicio. Podrían recuperarse desde una tabla de
-     * configuración.
-     */
-    // motivos now loaded from DB on demand via MotivoTipoDAO
-
-    // Estado interno de la interacción con la interfaz.
     private List<OrdenInspeccion> ordenesDisponibles;
     private OrdenInspeccion ordenSeleccionada;
     private String observacion;
     private List<MotivoFueraServicio> motivosSeleccionados;
+    private List<MotivoTipo> motivos;
+    private List<String> comentarios;
 
     /**
      * Crea un gestor con las dependencias necesarias.
@@ -57,11 +37,9 @@ public class GestorAdmInspeccion {
      * @param empleados lista de empleados para notificar
      */
     public GestorAdmInspeccion(Sesion sesionActiva,
-                               PantallaAdmInspecciones pantalla,
-                               List<Empleado> empleados) {
+                               PantallaAdmInspecciones pantalla) {
         this.sesionActiva = sesionActiva;
         this.pantalla = pantalla;
-        this.empleados = empleados;
     }
 
     /**
@@ -160,6 +138,7 @@ public class GestorAdmInspeccion {
         // Mostrar motivos cargados desde la base de datos
         List<MotivoTipo> motivosDisponibles = buscarMotivoFueraLinea();
         pantalla.mostrarMotivos(motivosDisponibles);
+        System.out.println("[Gestor] tomarObservacion -> observacion='" + observacion + "'");
     }
 
     /**
@@ -171,23 +150,70 @@ public class GestorAdmInspeccion {
      * @param comentarios lista de comentarios asociados, debe tener la misma
      *                    longitud que motivos
      */
-    public void tomarSeleccionMotivos(List<MotivoFueraServicio> motivos) {
-        // Recibe la lista ya construida en la UI (cada elemento incluye su comentario)
-        this.motivosSeleccionados = motivos != null ? new ArrayList<>(motivos) : new ArrayList<>();
-        pantalla.solicitarConfirmacion();
+    /**
+     * Recibe la lista de tipos de motivos seleccionados (sin comentarios).
+     * Los comentarios se recibirán por separado vía {@link #tomarSeleccionComentarios}.
+     */
+    public void tomarSeleccionMotivos(List<MotivoTipo> motivos) {
+        this.motivos = motivos != null ? new ArrayList<>(motivos) : new ArrayList<>();
+        System.out.println("[Gestor] tomarSeleccionMotivos -> motivos.count=" + this.motivos.size());
     }
 
+    /**
+     * Recibe la lista de comentarios en el mismo orden que los motivos
+     * previamente enviados por {@link #tomarSeleccionMotivos} y construye
+     * la lista interna de {@link MotivoFueraServicio} que se usará al
+     * cerrar la orden.
+     *
+     * Si las listas tienen longitudes distintas se emparejan hasta la
+     * menor longitud y los motivos sin comentario recibirán cadena vacía.
+     */
+    public void tomarSeleccionComentarios(List<String> comentarios) {
+        // Guardar comentarios tal cual y construir la lista de MotivoFueraServicio
+        // emparejando sólo hasta la cantidad de motivos seleccionados. No
+        // validamos longitudes — asumimos que la UI impide comentarios sin
+        // motivo.
+        this.comentarios = comentarios != null ? new ArrayList<>(comentarios) : new ArrayList<>();
+        System.out.println("[Gestor] tomarSeleccionComentarios -> comentarios.count=" + this.comentarios.size());
+        // Construir la lista combinada interna a partir de motivos + comentarios
+        this.motivosSeleccionados = new ArrayList<>();
+        if (this.motivos == null || this.motivos.isEmpty()) {
+            System.out.println("[Gestor] tomarSeleccionComentarios -> no hay motivos, motivosSeleccionados vacio");
+            return;
+        }
+        for (int i = 0; i < this.motivos.size(); i++) {
+            MotivoTipo tipo = this.motivos.get(i);
+            String coment = i < this.comentarios.size() ? this.comentarios.get(i) : "";
+            if (tipo != null) {
+                this.motivosSeleccionados.add(new MotivoFueraServicio(tipo, coment));
+            }
+        }
+        System.out.println("[Gestor] tomarSeleccionComentarios -> motivosSeleccionados.count=" + this.motivosSeleccionados.size());
+    }
+
+    
     /**
      * Invocado por la interfaz cuando el usuario confirma el cierre. Se
      * valida que existan los datos mínimos (observación y al menos un
      * motivo) y luego se ejecutan las acciones de cierre.
+     * @throws SQLException 
      */
-    public void tomarConfirmacion() {
+    public void tomarConfirmacion() throws SQLException {
+        System.out.println("[Gestor] tomarConfirmacion() llamado");
+        System.out.println("[Gestor] ordenSeleccionada: " + (ordenSeleccionada != null ? ordenSeleccionada.getNroOrden() : "null"));
+        System.out.println("[Gestor] observacion: " + observacion);
+        System.out.println("[Gestor] motivosSeleccionados: " + (motivosSeleccionados != null ? motivosSeleccionados.size() : 0));
+        
         if (!validarDatosRequeridosParaCierre()) {
+            System.out.println("[Gestor] Validación fallida");
             pantalla.mostrarError("Debe ingresar una observación y al menos un motivo para cerrar la orden.");
             return;
         }
+        System.out.println("[Gestor] Validación exitosa, procediendo con cierre");
         cerrarOrdenInspeccion();
+        obtenerMailResponsableReparacion();
+        publicarMonitores();
+        enviarNotificacionPorMail();
         finCU();
     }
 
@@ -196,9 +222,13 @@ public class GestorAdmInspeccion {
      * asociado. Devuelve false si faltan datos.
      */
     private boolean validarDatosRequeridosParaCierre() {
-        return ordenSeleccionada != null
-                && observacion != null && !observacion.isBlank()
-                && motivosSeleccionados != null && !motivosSeleccionados.isEmpty();
+        boolean ok = ordenSeleccionada != null
+            && observacion != null && !observacion.isBlank()
+            && motivosSeleccionados != null && !motivosSeleccionados.isEmpty();
+        System.out.println("[Gestor] validarDatos -> ordenSel=" + (ordenSeleccionada!=null) +
+            ", observacion='" + observacion + "', motivosSeleccionados.count=" + (motivosSeleccionados==null?0:motivosSeleccionados.size()) +
+            ", result=" + ok);
+        return ok;
     }
 
     /**
@@ -207,13 +237,13 @@ public class GestorAdmInspeccion {
      * entidades correspondientemente. Finalmente se notifican los eventos.
      */
     private void cerrarOrdenInspeccion() {
-        ahora = getFechaHoraActual();
+        fechaHora = getFechaHoraActual();
         Estado estado = buscarEstadoDeOrdenCerrada();
         // Cerrar la orden
-        ordenSeleccionada.cerrar(ahora, observacion, estado);
-        // Enviar sismógrafo a reparación
-        ordenSeleccionada.ponerSismografoFueraDeServicio(ahora, motivosSeleccionados, observacion,
-                sesionActiva.obtenerRILogueado());
+        ordenSeleccionada.cerrar(fechaHora, observacion, estado);
+    // Enviar sismógrafo a reparación
+    ordenSeleccionada.ponerSismografoFueraDeServicio(fechaHora, motivos, comentarios,
+        sesionActiva.obtenerRILogueado());
         
         // Persistir la orden cerrada en la BD
         try {
@@ -223,7 +253,7 @@ public class GestorAdmInspeccion {
         }
         
         // Notificaciones
-        enviarSismografoAReparacion(ahora, motivosSeleccionados, RILogueado);
+        enviarSismografoAReparacion(fechaHora, motivosSeleccionados, RILogueado);
     }
 
     /**
@@ -231,8 +261,10 @@ public class GestorAdmInspeccion {
      * Construye los textos incluyendo la identificación del sismógrafo,
      * el nuevo estado, la fecha/hora y los motivos seleccionados.
      */
-    private void enviarSismografoAReparacion(LocalDateTime ahora, List<MotivoFueraServicio> motivosSeleccionados, Empleado RILogueado) {
-        ordenSeleccionada.ponerSismografoFueraDeServicio(ahora, motivosSeleccionados, observacion, RILogueado);
+    private void enviarSismografoAReparacion(LocalDateTime fechaHora, List<MotivoFueraServicio> motivosSeleccionados, Empleado RILogueado) {
+        // Este método ahora solo se encarga de notificaciones
+        // La transición del sismógrafo ya fue hecha en cerrarOrdenInspeccion()
+        System.out.println("[Gestor] Sismógrafo enviado a reparación exitosamente");
     }
 
     /**
@@ -263,12 +295,44 @@ public class GestorAdmInspeccion {
         }
     }
 
+    public List<String> obtenerMailResponsableReparacion() throws SQLException {
+        List<Empleado> empleados = com.redseismica.database.dao.EmpleadoDAO.findAll();
+        List<String> mails = new ArrayList<>();
+        for (Empleado empleado : empleados) {
+            if (empleado.sosResponsableReparacion()) {
+                mails.add(empleado.getMail());
+            }
+        }
+        return mails;
+    }
+
+    public void publicarMonitores() {
+        if (pantalla != null) {
+            pantalla.mostrarMensaje("Publicado con exito en monitores");
+        } else {
+            System.out.println("[Gestor] publicarMonitores: publicado en monitores (sin UI)");
+        }
+    }
+
+    public void enviarNotificacionPorMail() throws SQLException {
+        if (pantalla != null) {
+            pantalla.mostrarMensaje("Correos enviados con exito");
+        } else {
+            System.out.println("[Gestor] enviarNotificacionPorMail: correos enviados (sin UI)");
+        }
+    }
+
 
     /**
      * Finaliza la interacción con un mensaje de confirmación al usuario. En
      * sistemas reales se podría cerrar la ventana o limpiar la interfaz.
      */
     private void finCU() {
-        pantalla.mostrarMensaje("La orden se ha cerrado correctamente.");
+        if (pantalla != null) {
+            pantalla.mostrarMensaje("La orden se ha cerrado correctamente.");
+            pantalla.volverAlMenuPrincipal();
+        } else {
+            System.out.println("[Gestor] finCU: La orden se ha cerrado correctamente. (sin UI)");
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.redseismica.app;
 
 import com.redseismica.database.DatabaseConfig;
+import com.redseismica.database.DataLoader;
 import java.sql.*;
 
 /**
@@ -11,7 +12,15 @@ public class ConsultarSismografo {
 
     public static void main(String[] args) {
         try {
-            System.out.println("=== CONSULTA DE SISMÓGRAFOS ===\n");
+            System.out.println("=== INICIALIZANDO BASE DE DATOS ===\n");
+            
+            // Crear tablas
+            DatabaseConfig.createTables();
+            
+            // Cargar datos iniciales
+            DataLoader.loadInitialData();
+            
+            System.out.println("\n=== CONSULTA DE SISMÓGRAFOS ===\n");
 
             // 1. Consultar todas las órdenes cerradas
             System.out.println("1. Órdenes de inspección CERRADAS (recientemente cerradas):\n");

@@ -51,7 +51,7 @@ public class App {
             Sesion sesion = new Sesion(usuarioRI);
 
             // 6. Crear el gestor; Gestor carga órdenes y motivos bajo demanda desde la BD
-            GestorAdmInspeccion gestor = new GestorAdmInspeccion(sesion, null, empleados);
+            GestorAdmInspeccion gestor = new GestorAdmInspeccion(sesion, null);
 
             // 7. Mostrar la interfaz gráfica
             SwingUtilities.invokeLater(() -> {
