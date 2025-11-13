@@ -47,7 +47,7 @@ public class ConsultarSismografo {
                    emp.nombre, emp.apellido
             FROM ordenes_inspeccion oi
             JOIN estaciones e ON oi.estacion_id = e.id
-            JOIN sismografos s ON e.sismografo_id = s.id
+            JOIN sismografos s ON s.estacion_id = e.id
             JOIN empleados emp ON oi.responsable_id = emp.id
             WHERE oi.estado = 'CERRADA'
             ORDER BY oi.fecha_hora_cierre DESC
@@ -79,7 +79,7 @@ public class ConsultarSismografo {
             SELECT s.id, s.numero_serie, s.modelo, s.estado_actual, s.fecha_hora_estado,
                    e.codigo, e.nombre as estacion_nombre
             FROM sismografos s
-            JOIN estaciones e ON s.id = e.sismografo_id
+            JOIN estaciones e ON s.estacion_id = e.id
             ORDER BY s.numero_serie
         """;
 

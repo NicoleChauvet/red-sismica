@@ -1,7 +1,10 @@
 package com.redseismica.model;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.redseismica.database.dao.SismografoDAO;
 
 public class EstacionSismologica {
     private final int codigoEstacion;
@@ -18,6 +21,9 @@ public class EstacionSismologica {
         this.latitud = latitud;
         this.longitud = longitud;
         this.sismografo = sismografo;
+        if (this.sismografo != null) {
+            this.sismografo.setEstacionSismologica(this);
+        }
     }
 
     public int getCodigoEstacion() {
@@ -40,8 +46,14 @@ public class EstacionSismologica {
         return sismografo;
     }
 
-    public int obtenerIDSismografo() {
-        return sismografo.getIdSismografo();
+    public int obtenerIDSismografo() throws SQLException {
+        List<Sismografo> sismografos = SismografoDAO.findAll();
+        for (Sismografo s : sismografos) {
+            if (s.sosMiSismografo(codigoEstacion)) {
+                return s.getIdSismografo();
+            }
+        }
+        return -1;
     }
 
     public void ponerSismografoFueraDeServicio(LocalDateTime fechaHora,

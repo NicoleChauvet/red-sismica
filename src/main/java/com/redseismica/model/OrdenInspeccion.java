@@ -94,6 +94,33 @@ public class OrdenInspeccion {
         }
     }
 
+    public List<String> buscarDatosOrdenInspeccion() {
+        List<String> datos = new java.util.ArrayList<>();
+        
+        // Número de orden
+        datos.add(String.valueOf(this.getNroOrden()));
+        
+        // Fecha de finalización
+        datos.add(this.getFechaHoraFinalizacion() != null ? this.getFechaHoraFinalizacion().toString() : "");
+        
+        // Nombre de la estación
+        datos.add(this.estacion != null ? this.estacion.getNombre() : "");
+        
+        // ID del sismógrafo
+        if (this.estacion != null) {
+            try {
+                int idSismografo = this.estacion.obtenerIDSismografo();
+                datos.add(idSismografo != -1 ? String.valueOf(idSismografo) : "");
+            } catch (Exception e) {
+                datos.add("");
+            }
+        } else {
+            datos.add("");
+        }
+        
+        return datos;
+    }
+
     @Override
     public String toString() {
         return "Orden " + nroOrden + " (finalización: " + fechaHoraFinalizacion + ")";

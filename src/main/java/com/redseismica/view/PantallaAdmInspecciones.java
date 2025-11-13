@@ -35,6 +35,8 @@ public class PantallaAdmInspecciones {
     private JButton registrarObservacionButton;
     private JButton cerrarButton;
     private JLabel mensajeLabel;
+    // Datos adicionales por orden: matriz de filas (cada fila = lista de columnas)
+    private java.util.List<java.util.List<String>> ordenesDatos;
     
     // Paleta de colores
     private static final Color AZUL_OSCURO = new Color(25, 55, 109);
@@ -102,11 +104,22 @@ public class PantallaAdmInspecciones {
                 
                 if (value instanceof OrdenInspeccion) {
                     OrdenInspeccion orden = (OrdenInspeccion) value;
-                    setText(String.format("  Orden #%d - %s - Estación: %s",
-                        orden.getNroOrden(),
-                        orden.getFechaHoraFinalizacion().format(
-                            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
-                        orden.getEstacion().getNombre()));
+                    String fecha = orden.getFechaHoraFinalizacion() != null ?
+                        orden.getFechaHoraFinalizacion().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "";
+                    String estacion = orden.getEstacion() != null ? orden.getEstacion().getNombre() : "";
+                    String sismId = "";
+                    if (ordenesDatos != null) {
+                        String nro = String.valueOf(orden.getNroOrden());
+                        for (java.util.List<String> row : ordenesDatos) {
+                            if (row != null && !row.isEmpty() && nro.equals(row.get(0))) {
+                                if (row.size() > 3) sismId = row.get(3);
+                                break;
+                            }
+                        }
+                    }
+                    String extra = sismId.isEmpty() ? "" : (" - Sismógrafo ID:" + sismId);
+                    setText(String.format("  Orden #%d - %s - Estación: %s%s",
+                        orden.getNroOrden(), fecha, estacion, extra));
                 } else if (value == null || value.toString().isEmpty()) {
                     setText("  Seleccione una orden...");
                 }
@@ -525,7 +538,8 @@ public class PantallaAdmInspecciones {
      * invoca automáticamente por el gestor después de calcular las
      * órdenes disponibles.
      */
-    public void mostrarOrdenesInspeccion(java.util.List<OrdenInspeccion> ordenes) {
+    public void mostrarOrdenesInspeccion(java.util.List<OrdenInspeccion> ordenes, java.util.List<java.util.List<String>> datos) {
+        this.ordenesDatos = datos;
         ordenesComboBox.removeAllItems();
         if (ordenes != null && !ordenes.isEmpty()) {
             for (OrdenInspeccion orden : ordenes) {

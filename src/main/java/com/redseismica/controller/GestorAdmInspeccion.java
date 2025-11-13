@@ -77,30 +77,66 @@ public class GestorAdmInspeccion {
      */
     public void opCerrarOrdenInspeccion() {
         RILogueado = sesionActiva.obtenerRILogueado();
-        this.ordenesDisponibles = buscarOrdenesInspeccion(RILogueado);
-        ordenarPorFechaFinalizacionOI();
-        pantalla.mostrarOrdenesInspeccion(ordenesDisponibles);
+        
+        // Buscar órdenes y construir matriz de datos (buscarOrdenesInspeccion ahora retorna la matriz)
+        java.util.List<java.util.List<String>> matriz = buscarOrdenesInspeccion(RILogueado);
+        
+        System.out.println("[Gestor] órdenes recuperadas desde BD: " + matriz.size());
+        
+        // Registrar para depuración
+        for (java.util.List<String> fila : matriz) {
+            System.out.println("[Gestor] orden fila: " + (fila.isEmpty() ? "(vacía)" : fila.get(0) + " / " + fila.get(2)));
+        }
+
+        // Reconstruir lista de órdenes para ordenar (necesario para mantener compatibilidad con la UI)
+        try {
+            List<OrdenInspeccion> ordenesBD = com.redseismica.database.dao.OrdenInspeccionDAO.findAll();
+            this.ordenesDisponibles = ordenesBD.stream()
+                    .filter(oi -> oi.esDeRILogueado(RILogueado))
+                    .filter(OrdenInspeccion::esCompletamenteRealizada)
+                    .collect(Collectors.toList());
+            ordenarPorFechaFinalizacionOI();
+        } catch (Exception e) {
+            System.err.println("Error al reconstruir lista de órdenes: " + e.getMessage());
+            this.ordenesDisponibles = new ArrayList<>();
+        }
+
+        pantalla.mostrarOrdenesInspeccion(ordenesDisponibles, matriz);
     }
 
     /**
      * Filtra las órdenes del responsable logueado que estén completamente
-     * realizadas y no se encuentren cerradas.
+     * realizadas, busca los datos de cada orden y construye la matriz de resultados.
+     * Sigue el flujo del diagrama de secuencia: esDeRILogueado() -> esCompletamenteRealizada() -> buscarDatosOrdenInspeccion()
      */
-    private List<OrdenInspeccion> buscarOrdenesInspeccion(Empleado RILogueado) {
-        // Cargar las órdenes directamente desde la base de datos y filtrar.
+    public java.util.List<java.util.List<String>> buscarOrdenesInspeccion(Empleado RILogueado) {
+        java.util.List<java.util.List<String>> matriz = new ArrayList<>();
+        
         try {
+            // Cargar todas las órdenes desde la base de datos
             List<OrdenInspeccion> ordenesBD = com.redseismica.database.dao.OrdenInspeccionDAO.findAll();
-            return ordenesBD.stream()
-                    .filter(oi -> oi.esDeRILogueado(RILogueado))
-                    .filter(OrdenInspeccion::esCompletamenteRealizada)
-                    .collect(Collectors.toList());
+            
+            // Filtrar y construir matriz siguiendo el diagrama de secuencia
+            for (OrdenInspeccion oi : ordenesBD) {
+                // Filtro 1: esDeRILogueado()
+                if (oi.esDeRILogueado(RILogueado)) {
+                    // Filtro 2: esCompletamenteRealizada()
+                    if (oi.esCompletamenteRealizada()) {
+                        // Buscar datos delegando a la orden
+                        java.util.List<String> fila = oi.buscarDatosOrdenInspeccion();
+                        matriz.add(fila);
+                    }
+                }
+            }
+            
+            return matriz;
+            
         } catch (Exception e) {
-            // No caer en datos en memoria: informar a la UI y devolver lista vacía.
             System.err.println("Error al leer órdenes desde la BD: " + e.getMessage());
             if (pantalla != null) {
                 pantalla.mostrarError("No se pudo conectar a la base de datos. Intente nuevamente más tarde.");
             }
-            return List.of();
+            return new ArrayList<>();
         }
     }
 
@@ -108,9 +144,10 @@ public class GestorAdmInspeccion {
      * Ordena las órdenes disponibles por la fecha de finalización de forma
      * ascendente (más antigua primero). Se modifica la lista interna.
      */
-    private void ordenarPorFechaFinalizacionOI() {
+    public void ordenarPorFechaFinalizacionOI() {
         if (ordenesDisponibles != null) {
-            ordenesDisponibles.sort(Comparator.comparing(OrdenInspeccion::getFechaHoraFinalizacion));
+            ordenesDisponibles.sort(Comparator.comparing(OrdenInspeccion::getFechaHoraFinalizacion,
+                    java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
         }
     }
 
@@ -144,20 +181,13 @@ public class GestorAdmInspeccion {
     /**
      * Recibe la selección de motivos y los comentarios correspondientes.
      * Construye la lista de MotivoFueraServicio para utilizar al cerrar la
-     * orden.
-     *
-     * @param motivos  lista de tipos seleccionados
-     * @param comentarios lista de comentarios asociados, debe tener la misma
-     *                    longitud que motivos
-     */
-    /**
-     * Recibe la lista de tipos de motivos seleccionados (sin comentarios).
-     * Los comentarios se recibirán por separado vía {@link #tomarSeleccionComentarios}.
      */
     public void tomarSeleccionMotivos(List<MotivoTipo> motivos) {
         this.motivos = motivos != null ? new ArrayList<>(motivos) : new ArrayList<>();
         System.out.println("[Gestor] tomarSeleccionMotivos -> motivos.count=" + this.motivos.size());
     }
+
+
 
     /**
      * Recibe la lista de comentarios en el mismo orden que los motivos
@@ -221,7 +251,7 @@ public class GestorAdmInspeccion {
      * Verifica que exista la observación de cierre y al menos un motivo
      * asociado. Devuelve false si faltan datos.
      */
-    private boolean validarDatosRequeridosParaCierre() {
+    public boolean validarDatosRequeridosParaCierre() {
         boolean ok = ordenSeleccionada != null
             && observacion != null && !observacion.isBlank()
             && motivosSeleccionados != null && !motivosSeleccionados.isEmpty();
@@ -236,7 +266,7 @@ public class GestorAdmInspeccion {
      * sismógrafo. Se obtienen la fecha y hora actuales y se actualizan las
      * entidades correspondientemente. Finalmente se notifican los eventos.
      */
-    private void cerrarOrdenInspeccion() {
+    public void cerrarOrdenInspeccion() {
         fechaHora = getFechaHoraActual();
         Estado estado = buscarEstadoDeOrdenCerrada();
         // Cerrar la orden
@@ -261,7 +291,7 @@ public class GestorAdmInspeccion {
      * Construye los textos incluyendo la identificación del sismógrafo,
      * el nuevo estado, la fecha/hora y los motivos seleccionados.
      */
-    private void enviarSismografoAReparacion(LocalDateTime fechaHora, List<MotivoFueraServicio> motivosSeleccionados, Empleado RILogueado) {
+    public void enviarSismografoAReparacion(LocalDateTime fechaHora, List<MotivoFueraServicio> motivosSeleccionados, Empleado RILogueado) {
         // Este método ahora solo se encarga de notificaciones
         // La transición del sismógrafo ya fue hecha en cerrarOrdenInspeccion()
         System.out.println("[Gestor] Sismógrafo enviado a reparación exitosamente");

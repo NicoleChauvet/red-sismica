@@ -1,6 +1,6 @@
 com\redseismica\view\PantallaMenuPrincipal$1.class
 com\redseismica\states\FueraDeServicio.class
-com\redseismica\states\MotivoTipo.class
+com\redseismica\view\PantallaAdmInspecciones$5.class
 com\redseismica\controller\GestorAdmInspeccion.class
 com\redseismica\model\Sesion.class
 com\redseismica\view\PantallaAdmInspecciones$3.class
@@ -29,6 +29,5 @@ com\redseismica\model\Sismografo.class
 com\redseismica\model\OrdenInspeccion.class
 com\redseismica\app\App.class
 com\redseismica\database\dao\EmpleadoDAO.class
-com\redseismica\test\TestDatabase.class
 com\redseismica\view\PantallaAdmInspecciones$2.class
 com\redseismica\states\Online.class

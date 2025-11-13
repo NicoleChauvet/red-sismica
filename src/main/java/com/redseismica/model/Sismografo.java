@@ -2,11 +2,11 @@ package com.redseismica.model;
 
 import com.redseismica.states.EstadoSismografo;
 
-import java.sql.SQLException;
+
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
-import com.redseismica.database.dao.SismografoDAO;
+ 
 
 public class Sismografo {
     private final int idSismografo;
@@ -50,6 +50,10 @@ public class Sismografo {
         return estacionSismologica;
     }
 
+    public void setEstacionSismologica(EstacionSismologica estacion) {
+        this.estacionSismologica = estacion;
+    }
+
     public List<CambioEstadoSismografo> getCambioEstado() {
         return Collections.unmodifiableList(cambioEstado);
     }
@@ -69,15 +73,7 @@ public class Sismografo {
         estadoActual.enviarAReparar(fechaHora, motivos, comentarios, responsable, this);
     }
 
-    public Sismografo sosMiSismografo(int codigoEstacion) throws SQLException {
-    List<Sismografo> listaSismografos = SismografoDAO.findAll();
-    for (Sismografo sismografo : listaSismografos)
-    {
-        if (sismografo.estacionSismologica.getCodigoEstacion() == codigoEstacion)
-        {
-            return sismografo;
-        }
-    }
-    return null;
+    public boolean sosMiSismografo(int codigoEstacion) {
+        return this.estacionSismologica != null && this.estacionSismologica.getCodigoEstacion() == codigoEstacion;
     }
 }

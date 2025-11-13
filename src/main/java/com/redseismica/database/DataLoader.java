@@ -36,15 +36,15 @@ public class DataLoader {
             if (isTableEmpty(conn, "usuarios")) {
                 insertUsuarios(conn);
             }
+            if (isTableEmpty(conn, "estaciones")) {
+                insertEstaciones(conn);
+            }
             if (isTableEmpty(conn, "sismografos")) {
                 insertSismografos(conn);
             }
             // Insertar cambios de estado iniciales para los sismógrafos si faltan
             if (isTableEmpty(conn, "cambios_estado_sismografo")) {
                 insertCambiosEstadoIniciales(conn);
-            }
-            if (isTableEmpty(conn, "estaciones")) {
-                insertEstaciones(conn);
             }
             if (isTableEmpty(conn, "ordenes_inspeccion")) {
                 insertOrdenesInspeccion(conn);
@@ -156,7 +156,7 @@ public class DataLoader {
     }
 
     private static void insertSismografos(Connection conn) throws SQLException {
-        String sql = "INSERT INTO sismografos (numero_serie, fecha_instalacion, modelo, estado_actual, fecha_hora_estado) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO sismografos (numero_serie, fecha_instalacion, modelo, estado_actual, fecha_hora_estado, estacion_id) VALUES (?, ?, ?, ?, ?, ?)";
         PreparedStatement pstmt = conn.prepareStatement(sql);
         
         LocalDateTime haceUnAnio = LocalDateTime.now().minusYears(1);
@@ -164,28 +164,31 @@ public class DataLoader {
         LocalDateTime haceSeisMeses = LocalDateTime.now().minusMonths(6);
         LocalDateTime haceTresMeses = LocalDateTime.now().minusMonths(3);
         
-        // Sismógrafo 1 - Inhabilitado por inspección
+        // Sismógrafo 1 - Inhabilitado por inspección (estación 1)
         pstmt.setInt(1, 1001);
         pstmt.setTimestamp(2, Timestamp.valueOf(haceUnAnio));
         pstmt.setInt(3, 1);
         pstmt.setString(4, "InhabilitadoPorInspeccion");
         pstmt.setTimestamp(5, Timestamp.valueOf(haceDosDias));
+        pstmt.setInt(6, 1);
         pstmt.executeUpdate();
-        
-        // Sismógrafo 2 - Online
+
+        // Sismógrafo 2 - Online (estación 2)
         pstmt.setInt(1, 1002);
         pstmt.setTimestamp(2, Timestamp.valueOf(haceSeisMeses));
         pstmt.setInt(3, 2);
         pstmt.setString(4, "Online");
         pstmt.setTimestamp(5, Timestamp.valueOf(haceSeisMeses));
+        pstmt.setInt(6, 2);
         pstmt.executeUpdate();
-        
-        // Sismógrafo 3 - Fuera de servicio
+
+        // Sismógrafo 3 - Fuera de servicio (estación 3)
         pstmt.setInt(1, 1003);
         pstmt.setTimestamp(2, Timestamp.valueOf(haceTresMeses));
         pstmt.setInt(3, 1);
         pstmt.setString(4, "FueraDeServicio");
         pstmt.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now().minusDays(10)));
+        pstmt.setInt(6, 3);
         pstmt.executeUpdate();
         
         pstmt.close();
@@ -224,30 +227,27 @@ public class DataLoader {
     }
 
     private static void insertEstaciones(Connection conn) throws SQLException {
-        String sql = "INSERT INTO estaciones (codigo, nombre, latitud, longitud, sismografo_id) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO estaciones (codigo, nombre, latitud, longitud) VALUES (?, ?, ?, ?)";
         PreparedStatement pstmt = conn.prepareStatement(sql);
-        
+
         pstmt.setInt(1, 101);
         pstmt.setString(2, "Estación Central");
         pstmt.setDouble(3, -31.4167);
         pstmt.setDouble(4, -64.1833);
-        pstmt.setInt(5, 1);
         pstmt.executeUpdate();
-        
+
         pstmt.setInt(1, 102);
         pstmt.setString(2, "Estación Norte");
         pstmt.setDouble(3, -31.3500);
         pstmt.setDouble(4, -64.2000);
-        pstmt.setInt(5, 2);
         pstmt.executeUpdate();
-        
+
         pstmt.setInt(1, 103);
         pstmt.setString(2, "Estación Sur");
         pstmt.setDouble(3, -31.5000);
         pstmt.setDouble(4, -64.1500);
-        pstmt.setInt(5, 3);
         pstmt.executeUpdate();
-        
+
         pstmt.close();
         System.out.println("  - Estaciones insertadas");
     }

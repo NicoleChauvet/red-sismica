@@ -76,6 +76,17 @@ public class DatabaseConfig {
             )
         """);
 
+                // Tabla de Estaciones Sismológicas
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS estaciones (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                codigo INT NOT NULL UNIQUE,
+                nombre VARCHAR(150) NOT NULL,
+                latitud DOUBLE NOT NULL,
+                longitud DOUBLE NOT NULL
+            )
+        """);
+
         // Tabla de Sismógrafos
         stmt.execute("""
             CREATE TABLE IF NOT EXISTS sismografos (
@@ -84,20 +95,9 @@ public class DatabaseConfig {
                 fecha_instalacion TIMESTAMP NOT NULL,
                 modelo INT NOT NULL,
                 estado_actual VARCHAR(50) NOT NULL,
-                fecha_hora_estado TIMESTAMP NOT NULL
-            )
-        """);
-
-        // Tabla de Estaciones Sismológicas
-        stmt.execute("""
-            CREATE TABLE IF NOT EXISTS estaciones (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                codigo INT NOT NULL UNIQUE,
-                nombre VARCHAR(150) NOT NULL,
-                latitud DOUBLE NOT NULL,
-                longitud DOUBLE NOT NULL,
-                sismografo_id INT NOT NULL,
-                FOREIGN KEY (sismografo_id) REFERENCES sismografos(id)
+                fecha_hora_estado TIMESTAMP NOT NULL,
+                    estacion_id INT,
+                    FOREIGN KEY (estacion_id) REFERENCES estaciones(id)
             )
         """);
 

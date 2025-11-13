@@ -30,7 +30,7 @@ public class OrdenInspeccionDAO {
                    r.nombre as rol_nombre
             FROM ordenes_inspeccion oi
             JOIN estaciones e ON oi.estacion_id = e.id
-            JOIN sismografos s ON e.sismografo_id = s.id
+            JOIN sismografos s ON s.estacion_id = e.id
             JOIN empleados emp ON oi.responsable_id = emp.id
             JOIN roles r ON emp.rol_id = r.id
             WHERE oi.responsable_id = ?
@@ -126,7 +126,7 @@ public class OrdenInspeccionDAO {
                    r.nombre as rol_nombre
             FROM ordenes_inspeccion oi
             JOIN estaciones e ON oi.estacion_id = e.id
-            JOIN sismografos s ON e.sismografo_id = s.id
+            JOIN sismografos s ON s.estacion_id = e.id
             JOIN empleados emp ON oi.responsable_id = emp.id
             JOIN roles r ON emp.rol_id = r.id
             ORDER BY oi.fecha_hora_finalizacion ASC

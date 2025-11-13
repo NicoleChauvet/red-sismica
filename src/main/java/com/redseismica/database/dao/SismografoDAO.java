@@ -102,7 +102,7 @@ public class SismografoDAO {
             SELECT s.id, s.numero_serie, s.fecha_instalacion, s.modelo, s.estado_actual, s.fecha_hora_estado,
                    e.codigo, e.nombre as estacion_nombre, e.latitud, e.longitud
             FROM sismografos s
-            JOIN estaciones e ON s.id = e.sismografo_id
+            LEFT JOIN estaciones e ON s.estacion_id = e.id
             ORDER BY s.numero_serie
         """;
 
